@@ -5,5 +5,7 @@ declare namespace Cloudflare {
     TEACHER_PASSWORD?: string;
     TEACHER_EMAIL?: string;
     SESSION_SECRET?: string;
+    FIREBASE_API_KEY?: string;
   }
 }
+
