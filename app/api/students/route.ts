@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const name = typeof body.name === "string" ? body.name.trim().slice(0, 40) : "";
   const grade = Number(body.grade);
   const classroom = typeof body.classroom === "string" ? body.classroom.trim().slice(0, 30) : "";
-  if (!name || !Number.isInteger(grade) || grade < 1 || grade > 6) return jsonError("이름과 1~6학년 정보를 입력해 주세요.");
+  if (!name || !Number.isInteger(grade) || grade < 1 || grade > 3) return jsonError("이름과 1~3학년 정보를 입력해 주세요.");
   const id = crypto.randomUUID();
   const accessCode = createAccessCode();
   try {
@@ -48,3 +48,4 @@ export async function POST(request: Request) {
     return jsonError("학생을 등록하지 못했습니다.", 503);
   }
 }
+
