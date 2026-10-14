@@ -93,7 +93,7 @@ function AccountForm({ mode, onNavigate, onGradeChange }: Navigation & { mode: "
     <div className="panel account-card">
       <nav className="account-tabs" aria-label="학생 계정 메뉴"><button aria-current={!signup ? "page" : undefined} className={!signup ? "active" : ""} onClick={() => onNavigate("login")}>로그인</button><button aria-current={signup ? "page" : undefined} className={signup ? "active" : ""} onClick={() => onNavigate("signup")}>회원가입</button></nav>
       <h2>{signup ? "학생 회원가입" : "학생 로그인"}</h2><p className="muted">{signup ? "이메일로 나만의 배움 공간을 만들어요." : "가입한 이메일과 비밀번호로 시작해요."}</p>
-      <div id="account-readiness" className="readiness-note" role="status"><LockKeyhole size={19}/><p>Firebase 이메일 {signup ? "회원가입" : "로그인"}을 사용해요.<br/><small>비밀번호는 사이트에 저장하지 않고 Firebase 인증으로 처리합니다.</small></p></div>
+      <div id="account-readiness" className="readiness-note" role="status"><LockKeyhole size={19}/><p>{signup ? "새 이메일 계정을 만들어 시작해요." : "가입한 이메일 계정으로 로그인해요."}<br/><small>비밀번호는 안전한 인증 서비스로 보호합니다.</small></p></div>
       <form className="form-stack" onSubmit={handleSubmit} aria-describedby="account-readiness" autoComplete="off">
         {signup && <><label htmlFor="student-name">이름<input id="student-name" name="name" placeholder="이름을 입력해 주세요" maxLength={40}/></label><div className="form-columns"><label htmlFor="student-grade">학년<select id="student-grade" name="grade" defaultValue=""><option value="" disabled>학년 선택</option>{GRADES.map(grade => <option key={grade} value={grade}>{grade}학년</option>)}</select></label><label htmlFor="student-classroom">반 <small className="optional-label">선택</small><input id="student-classroom" name="classroom" placeholder="예: 2반" maxLength={30}/></label></div></>}
         <label htmlFor="student-email">이메일<div className="input-with-icon"><Mail size={19}/><input id="student-email" name="email" type="email" placeholder="name@example.com" maxLength={254}/></div></label>
@@ -158,4 +158,3 @@ function LeaveDialog({ onCancel, onConfirm }: { onCancel: () => void; onConfirm:
 function Results({ onNavigate }: Navigation) {
   return <section className="container results-content"><div className="page-intro"><p className="eyebrow">나의 결과</p><h1>배움의 기록을 모아 봐요.</h1><p>진단 결과에서 나의 강점과 다음 배움을 살펴볼 수 있어요.</p></div><div className="panel results-empty"><span className="results-empty-icon"><ChartNoAxesCombined size={38}/></span><h2>로그인 후 나의 결과를 확인해요.</h2><p>회원가입과 결과 조회 기능을 준비하고 있어요.<br/>정식 오픈 후 진단을 완료하면 이곳에서 내 기록을 볼 수 있어요.</p><div className="button-row"><button className="button button-primary" onClick={() => onNavigate("login")}>로그인 화면 보기 <ArrowRight size={18}/></button><button className="button button-outline" onClick={() => onNavigate("diagnosis")}>진단 안내 보기</button></div></div></section>;
 }
-
