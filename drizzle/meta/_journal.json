@@ -15,6 +15,13 @@
       "when": 1791867106484,
       "tag": "0001_overrated_miracleman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792019796764,
+      "tag": "0002_student_firebase_uid",
+      "breakpoints": true
     }
   ]
 }
