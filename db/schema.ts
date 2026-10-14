@@ -7,8 +7,9 @@ export const students = sqliteTable("students", {
   grade: integer("grade").notNull(),
   classroom: text("classroom").notNull().default(""),
   accessCode: text("access_code"),
+  firebaseUid: text("firebase_uid"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [uniqueIndex("students_access_code_idx").on(table.accessCode)]);
+}, (table) => [uniqueIndex("students_access_code_idx").on(table.accessCode), uniqueIndex("students_firebase_uid_idx").on(table.firebaseUid)]);
 
 export const assessments = sqliteTable("assessments", {
   id: text("id").primaryKey(),
@@ -19,3 +20,4 @@ export const assessments = sqliteTable("assessments", {
   answers: text("answers").notNull(),
   completedAt: text("completed_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [index("assessments_student_completed_idx").on(table.studentId, table.completedAt)]);
+
