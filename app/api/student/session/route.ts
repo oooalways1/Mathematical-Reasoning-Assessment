@@ -1,4 +1,13 @@
-import { createStudentSession, db, jsonError, privateJson, sameOrigin, sessionCookie } from "../../_lib";
+import { createStudentSession, db, jsonError, privateJson, sameOrigin, sessionCookie, studentSessionId } from "../../_lib";
+
+export async function GET(request: Request) {
+  const id = await studentSessionId(request);
+  if (!id) return privateJson({ student: null });
+  try {
+    const student = await db().prepare('SELECT id, name, grade, classroom FROM students WHERE id=?').bind(id).first();
+    return privateJson({ student: student ?? null });
+  } catch { return jsonError('학생 계정을 확인하지 못했습니다.', 503); }
+}
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return jsonError("잘못된 요청입니다.", 403);

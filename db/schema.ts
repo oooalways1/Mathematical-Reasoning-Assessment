@@ -19,5 +19,14 @@ export const assessments = sqliteTable("assessments", {
   domains: text("domains").notNull(),
   answers: text("answers").notNull(),
   completedAt: text("completed_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  grade: integer("grade"),
+  submissionMethod: text("submission_method"),
+  keyVersion: text("key_version"),
 }, (table) => [index("assessments_student_completed_idx").on(table.studentId, table.completedAt)]);
 
+export const diagnosisKeys = sqliteTable("diagnosis_keys", {
+  grade: integer("grade").primaryKey(),
+  answers: text("answers").notNull(),
+  version: text("version").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

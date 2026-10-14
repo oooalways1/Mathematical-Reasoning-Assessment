@@ -1,0 +1,7 @@
+"use client";
+import { useEffect, useState } from 'react';
+export default function AnswerSheet() {
+  const [grade, setGrade] = useState(1);
+  useEffect(() => { const value = Number(new URLSearchParams(window.location.search).get('grade')); if ([1,2,3].includes(value)) setGrade(value); }, []);
+  return <main className="printable-answer-sheet"><div className="sheet-actions"><button className="button button-primary" onClick={() => window.print()}>인쇄 / PDF로 저장</button><a href="/" className="button button-outline">사이트로 돌아가기</a></div><h1>수리력 한걸음 · {grade}학년 답안지</h1><p>선택형은 보기 번호(1~4), 단답형은 답을 적습니다.</p><p>번호 옆 한 줄에 답만 또렷하게 적어 주세요. 여러 답은 쉼표로 구분합니다.</p><div className="sheet-rows">{Array.from({ length: 20 }, (_, index) => <div key={index}>{String(index + 1).padStart(2, '0')}: <span>________________________________</span></div>)}</div><style>{`.printable-answer-sheet { width: min(100%, 700px); padding: 30px; margin: auto; background: white; color: black; } .printable-answer-sheet h1 { font-size: 25px; margin: 22px 0 15px; } .printable-answer-sheet p { font-size: 15px; margin: 8px 0; } .sheet-actions { display:flex; gap:12px; flex-wrap:wrap; } .sheet-rows { margin-top: 24px; font-size: 22px; font-family: Arial, sans-serif; } .sheet-rows > div { height: 35px; } .sheet-rows span { color: #555; } @media print { @page { size: A4; margin: 15mm; } body { background: white; } .sheet-actions { display: none; } .printable-answer-sheet { width: 100%; padding: 0; } .sheet-rows > div { height: 9mm; } }`}</style></main>;
+}

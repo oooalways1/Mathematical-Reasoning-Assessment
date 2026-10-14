@@ -5,6 +5,8 @@ import { Activity, ArrowRight, BarChart3, BookOpenCheck, ClipboardList, Download
 import { domains, domainScore, hasLegacyDomains } from "@/lib/assessment";
 import { GRADES, isGrade, type Grade } from "@/lib/diagnosis-blueprint";
 import StudentPortal, { type PortalPage } from "./student-portal";
+import type { StudentProfile } from '@/lib/diagnosis-model';
+import AnswerKeyEditor from './answer-key-editor';
 
 type Student = { id: string; name: string; grade: number; classroom: string; createdAt: string; latestScore?: number | null; assessmentCount?: number };
 type Result = { id: string; studentId: string; totalScore: number; maxScore: number; domains: Record<string, number>; completedAt: string };
@@ -25,6 +27,8 @@ function downloadCsv(rows: unknown[][], filename: string) {
 export default function Home() {
   const [page, setPage] = useState<PortalPage>("home");
   const [initialGrade, setInitialGrade] = useState<Grade>(1);
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
   const [showAdmin, setShowAdmin] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
   const [results, setResults] = useState<Result[]>([]);
@@ -43,6 +47,20 @@ export default function Home() {
   const [addError, setAddError] = useState("");
 
   function navigate(next: PortalPage) { setShowAdmin(false); setPage(next); setError(""); }
+  function authenticated(student: StudentProfile) { setStudentProfile(student); setInitialGrade(student.grade); }
+  async function studentLogout() {
+    const response = await fetch('/api/student/session', { method: 'DELETE' });
+    if (response.ok) { setStudentProfile(null); setInitialGrade(1); navigate('home'); }
+  }
+  useEffect(() => {
+    let active = true;
+    fetch('/api/student/session', { cache: 'no-store' }).then(async response => {
+      if (!response.ok) throw new Error();
+      const data = await response.json() as { student: StudentProfile | null };
+      if (active && data.student && isGrade(data.student.grade)) authenticated(data.student);
+    }).catch(() => {}).finally(() => { if (active) setSessionLoading(false); });
+    return () => { active = false; };
+  }, []);
   async function loadAdmin() {
     setError("");
     try {
@@ -150,10 +168,10 @@ export default function Home() {
     <header className="site-header"><div className="container header-inner">
       <button onClick={() => navigate("home")} className="brand" aria-label="수리력 한걸음 홈"><span className="brand-icon"><BookOpenCheck size={25}/></span><span>수리력 한걸음</span></button>
       <nav className="portal-nav" aria-label="주 메뉴">{([["home", "홈"], ["diagnosis", "진단하기"], ["results", "나의 결과"]] as const).map(([id, label]) => <button key={id} aria-current={!showAdmin && page === id ? "page" : undefined} onClick={() => navigate(id)}>{label}</button>)}</nav>
-      <div className="header-account"><button className="header-login" aria-current={!showAdmin && page === "login" ? "page" : undefined} onClick={() => navigate("login")}>로그인</button><button className="button button-primary" aria-current={!showAdmin && page === "signup" ? "page" : undefined} onClick={() => navigate("signup")}>회원가입</button></div>
+      <div className="header-account">{studentProfile ? <><span className="signed-student">{studentProfile.name} · {studentProfile.grade}학년</span><button className="header-login" onClick={() => void studentLogout()}>로그아웃</button></> : <><button className="header-login" aria-current={!showAdmin && page === "login" ? "page" : undefined} onClick={() => navigate("login")}>로그인</button><button className="button button-primary" aria-current={!showAdmin && page === "signup" ? "page" : undefined} onClick={() => navigate("signup")}>회원가입</button></>}</div>
     </div></header>
 
-    {!showAdmin && <StudentPortal page={page} initialGrade={initialGrade} onNavigate={navigate} onGradeChange={setInitialGrade}/>}
+    {!showAdmin && <StudentPortal page={page} initialGrade={initialGrade} onNavigate={navigate} onGradeChange={setInitialGrade} onAuthenticated={authenticated} student={studentProfile} sessionLoading={sessionLoading}/>}
     {showAdmin && admin && <>{adminNotice && <p className="container admin-notice" role="status">{adminNotice}</p>}<AdminPanel students={students} results={results} stats={stats} error={error}
       onAdd={() => { setAddError(""); setShowAddStudent(true); }} onExport={exportCsv} onLogout={() => void logout()}
       onRefresh={() => void loadAdmin()} onDiagnose={(student) => { setInitialGrade(isGrade(student.grade) ? student.grade : 1); navigate("diagnosis"); }}/></>}
@@ -212,7 +230,7 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
   onAdd: () => void; onExport: () => void; onLogout: () => void; onRefresh: () => void; onDiagnose: (student: Student) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<"overview" | "students" | "records">("overview");
+  const [tab, setTab] = useState<"overview" | "students" | "records" | "keys">("overview");
   const [selectedId, setSelectedId] = useState("");
   const matched = students.filter((student) => `${student.name} ${student.classroom} ${student.grade}`.includes(query));
   const visibleResults = selectedId ? results.filter((result) => result.studentId === selectedId) : results;
@@ -228,7 +246,7 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
       <div className="button-row"><button className="button button-outline" onClick={onRefresh}>새로고침</button><button className="button button-outline" onClick={onLogout}><LogOut size={18}/> 로그아웃</button></div>
     </div>
     {error && <p role="alert" className="alert">{error}</p>}
-    <nav className="admin-tabs" aria-label="관리 메뉴">{([["overview", "한눈에 보기"], ["students", "학생 관리"], ["records", "진단 기록"]] as const).map(([id, label]) =>
+    <nav className="admin-tabs" aria-label="관리 메뉴">{([["overview", "한눈에 보기"], ["students", "학생 관리"], ["records", "진단 기록"], ["keys", "정답 설정"]] as const).map(([id, label]) =>
       <button key={id} aria-current={tab === id ? "page" : undefined} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</nav>
 
     {tab === "overview" && <>
@@ -264,7 +282,7 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
       </tbody></table></div>
       {!visibleResults.length && <div className="empty-state"><ClipboardList size={32}/><p>조회할 진단 기록이 없어요.</p></div>}
     </section>}
+    {tab === 'keys' && <AnswerKeyEditor/>}
     <p className="admin-session-note"><ShieldCheck size={18}/> 공용 기기에서는 사용 후 로그아웃해 주세요.</p>
   </div>;
 }
-

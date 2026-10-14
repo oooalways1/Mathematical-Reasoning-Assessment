@@ -4,18 +4,21 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, ArrowUpRight, BookOpenCheck, Calculator, ChartNoAxesCombined, Check, ChevronLeft, ChevronRight, CircleHelp, ClipboardList, Eye, EyeOff, GraduationCap, LockKeyhole, Mail, Shapes, Sparkles, TrendingUp, UserRoundPlus } from "lucide-react";
 import { domains, domainDescriptions } from "@/lib/assessment";
 import { GRADES, QUESTION_COUNT, questionBlueprints, type Grade } from "@/lib/diagnosis-blueprint";
+import type { StudentProfile } from '@/lib/diagnosis-model';
+import Diagnosis from './diagnosis';
+import MyResults from './my-results';
 
 export type PortalPage = "home" | "signup" | "login" | "diagnosis" | "results";
-type Navigation = { onNavigate: (page: PortalPage) => void; onGradeChange?: (grade: Grade) => void };
+type Navigation = { onNavigate: (page: PortalPage) => void; onGradeChange?: (grade: Grade) => void; onAuthenticated?: (student: StudentProfile) => void };
 const domainIcons = [Calculator, TrendingUp, Shapes, ChartNoAxesCombined];
 
-export default function StudentPortal({ page, initialGrade, onNavigate, onGradeChange }: Navigation & { page: PortalPage; initialGrade: Grade }) {
+export default function StudentPortal({ page, initialGrade, onNavigate, onGradeChange, onAuthenticated, student, sessionLoading }: Navigation & { page: PortalPage; initialGrade: Grade; student: StudentProfile | null; sessionLoading: boolean }) {
   return <>
     <div className="preview-banner"><span/>수리력 진단 <span className="preview-separator">·</span> 이메일 회원가입으로 시작해요.</div>
     {page === "home" && <Landing onNavigate={onNavigate}/>}
-    {(page === "signup" || page === "login") && <AccountForm key={page} mode={page} onNavigate={onNavigate} onGradeChange={onGradeChange}/>} 
-    {page === "diagnosis" && <Diagnosis key={initialGrade} initialGrade={initialGrade} onNavigate={onNavigate}/>}
-    {page === "results" && <Results onNavigate={onNavigate}/>}
+    {(page === "signup" || page === "login") && <AccountForm key={page} mode={page} onNavigate={onNavigate} onGradeChange={onGradeChange} onAuthenticated={onAuthenticated}/>}
+    {page === "diagnosis" && <Diagnosis key={student?.id ?? initialGrade} student={student} sessionLoading={sessionLoading} initialGrade={initialGrade} onNavigate={onNavigate}/>}
+    {page === "results" && <MyResults student={student} onNavigate={onNavigate}/>}
   </>;
 }
 
@@ -58,7 +61,7 @@ function Landing({ onNavigate }: Navigation) {
   </div>;
 }
 
-function AccountForm({ mode, onNavigate, onGradeChange }: Navigation & { mode: "signup" | "login" }) {
+function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated }: Navigation & { mode: "signup" | "login" }) {
   const signup = mode === "signup";
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -76,13 +79,15 @@ function AccountForm({ mode, onNavigate, onGradeChange }: Navigation & { mode: "
     const confirmation = String(form.get("passwordConfirm") ?? "");
     if (signup && (!name || ![1, 2, 3].includes(grade))) { setError("이름과 학년을 입력해 주세요."); setSubmitting(false); return; }
     if (!email || !password) { setError("이메일과 비밀번호를 입력해 주세요."); setSubmitting(false); return; }
+    if (signup && password.length < 6) { setError("비밀번호는 최소 6자리로 입력해 주세요."); setSubmitting(false); return; }
     if (signup && password !== confirmation) { setError("비밀번호가 서로 다릅니다."); setSubmitting(false); return; }
     try {
       const response = await fetch(signup ? "/api/auth/signup" : "/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signup ? { name, grade, classroom, email, password } : { email, password }) });
-      const payload = await response.json() as { student?: { grade?: number }; error?: string };
+      const payload = await response.json() as { student?: StudentProfile; error?: string };
       if (!response.ok || !payload.student) throw new Error(payload.error || "계정 요청을 처리하지 못했습니다.");
       const studentGrade = Number(payload.student.grade);
       if ([1, 2, 3].includes(studentGrade)) onGradeChange?.(studentGrade as Grade);
+      onAuthenticated?.(payload.student);
       setNotice(signup ? "회원가입이 완료됐어요. 진단을 시작해 주세요." : "로그인했어요. 진단을 시작해 주세요.");
       window.setTimeout(() => onNavigate("diagnosis"), 700);
     } catch (submitError) { setError(submitError instanceof Error ? submitError.message : "계정 요청을 처리하지 못했습니다."); }
@@ -97,7 +102,7 @@ function AccountForm({ mode, onNavigate, onGradeChange }: Navigation & { mode: "
       <form className="form-stack" onSubmit={handleSubmit} aria-describedby="account-readiness" autoComplete="off">
         {signup && <><label htmlFor="student-name">이름<input id="student-name" name="name" placeholder="이름을 입력해 주세요" maxLength={40}/></label><div className="form-columns"><label htmlFor="student-grade">학년<select id="student-grade" name="grade" defaultValue=""><option value="" disabled>학년 선택</option>{GRADES.map(grade => <option key={grade} value={grade}>{grade}학년</option>)}</select></label><label htmlFor="student-classroom">반 <small className="optional-label">선택</small><input id="student-classroom" name="classroom" placeholder="예: 2반" maxLength={30}/></label></div></>}
         <label htmlFor="student-email">이메일<div className="input-with-icon"><Mail size={19}/><input id="student-email" name="email" type="email" placeholder="name@example.com" maxLength={254}/></div></label>
-        <label htmlFor="student-password">비밀번호<div className="password-input"><input id="student-password" name="password" type={showPassword ? "text" : "password"} placeholder="비밀번호를 입력해 주세요" autoComplete="new-password" maxLength={128}/><button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}>{showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}</button></div></label>
+        <label htmlFor="student-password">비밀번호 {signup && <small>최소 6자리</small>}<div className="password-input"><input id="student-password" name="password" type={showPassword ? "text" : "password"} placeholder={signup ? "최소 6자리로 입력해 주세요" : "비밀번호를 입력해 주세요"} autoComplete={signup ? "new-password" : "current-password"} minLength={signup ? 6 : undefined} maxLength={128}/><button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}>{showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}</button></div></label>
         {signup && <label htmlFor="password-confirm">비밀번호 확인<input id="password-confirm" name="passwordConfirm" type="password" placeholder="비밀번호를 한 번 더 입력해 주세요" autoComplete="new-password" maxLength={128}/></label>}
         {error && <p className="alert" role="alert">{error}</p>}{notice && <p className="success-message" role="status">{notice}</p>}
         <button type="submit" className="button button-primary button-block" disabled={submitting}>{submitting ? (signup ? "가입 처리 중…" : "로그인 중…") : (signup ? "회원가입" : "로그인")} <ArrowRight size={18}/></button>
@@ -105,56 +110,4 @@ function AccountForm({ mode, onNavigate, onGradeChange }: Navigation & { mode: "
       <p className="account-switch">{signup ? "이미 계정이 있나요?" : "아직 계정이 없나요?"} <button className="text-button" onClick={() => onNavigate(signup ? "login" : "signup")}>{signup ? "로그인" : "회원가입"}</button></p>
     </div>
   </section>;
-}
-
-function Diagnosis({ initialGrade, onNavigate }: Navigation & { initialGrade: Grade }) {
-  const [grade, setGrade] = useState<Grade>(initialGrade);
-  const [started, setStarted] = useState(false);
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [reviewing, setReviewing] = useState(false);
-  const [leaveOpen, setLeaveOpen] = useState(false);
-  const items = questionBlueprints[grade];
-  const item = items[step];
-  const answeredCount = items.filter(question => answers[question.id]?.trim()).length;
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { if (started) headingRef.current?.focus(); }, [step, started, reviewing]);
-  useEffect(() => {
-    if (!answeredCount) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [answeredCount]);
-  function changeGrade(next: Grade) { setGrade(next); setStep(0); setAnswers({}); setReviewing(false); }
-
-  return <section className="container diagnosis-content">
-    {!started ? <>
-      <div className="page-intro"><p className="eyebrow">진단하기</p><h1>나의 학년을 선택해 주세요.</h1><p>총 {QUESTION_COUNT}문항으로 지금까지의 배움을 살펴봐요.</p></div>
-      <fieldset className="grade-grid"><legend className="sr-only">진단 학년</legend>{GRADES.map(value => <label key={value} className={`grade-card ${grade === value ? "selected" : ""}`}><input type="radio" name="assessment-grade" checked={grade === value} onChange={() => changeGrade(value)}/><span className="grade-number">0{value}</span><span><strong>{value}학년</strong><small>총 {QUESTION_COUNT}문항</small></span><span className="grade-radio">{grade === value && <Check size={16}/>}</span></label>)}</fieldset>
-      <div className="panel diagnosis-instructions"><div><span className="quick-icon blue"><ClipboardList size={25}/></span><h2>시작하기 전에 읽어 주세요.</h2><ul><li>선생님이 나눠 준 우리 학년 검사지를 준비해요.</li><li>검사지의 문제를 풀고, 번호에 맞는 답을 입력해요.</li><li>선택형은 보기 번호를, 단답형은 직접 답을 적어요.</li><li>제출 전에 {QUESTION_COUNT}문항의 답을 한 번 더 확인해요.</li></ul></div><aside><span className="badge">미리보기 안내</span><p>현재는 답안 화면을 살펴볼 수 있어요. 정식 진단은 회원가입 기능과 검사지 확인이 끝난 뒤 시작해요.</p><button className="button button-primary button-block" onClick={() => { setStarted(true); setStep(0); }}>{grade}학년 답안 화면 미리보기 <ArrowRight size={18}/></button><button className="text-button" onClick={() => onNavigate("signup")}>회원가입 화면 보기</button></aside></div>
-    </> : <>
-      <div className="answer-heading"><div><p className="eyebrow">{grade}학년 · 답안 화면 미리보기</p><h1 ref={headingRef} tabIndex={-1}>{reviewing ? "입력한 답을 확인해요." : `${item.number}번 문제의 답을 입력해요.`}</h1></div><button className="button button-outline" onClick={() => answeredCount ? setLeaveOpen(true) : setStarted(false)}>학년 다시 선택</button></div>
-      <p className="answer-preview-note">이 화면은 검사지 답안 입력용 미리보기예요. 답안은 새로고침하거나 화면을 나가면 사라지며, 채점·저장은 아직 진행되지 않아요.</p>
-      <div className="answer-layout"><aside className="panel answer-map"><div className="answer-map-heading"><h2>문항 번호</h2><span>{answeredCount} / {QUESTION_COUNT}</span></div><div className="answer-progress" role="progressbar" aria-label="답안 입력 진행률" aria-valuemin={0} aria-valuemax={QUESTION_COUNT} aria-valuenow={answeredCount}><div style={{ width: `${answeredCount / QUESTION_COUNT * 100}%` }}/></div><nav className="question-grid" aria-label="문항 이동">{items.map((question, index) => <button key={question.id} className={`${!reviewing && step === index ? "current" : ""} ${answers[question.id]?.trim() ? "answered" : ""}`} aria-current={!reviewing && step === index ? "step" : undefined} aria-label={`${question.number}번 ${answers[question.id]?.trim() ? "답변 완료" : "미답변"}`} onClick={() => { setStep(index); setReviewing(false); }}>{question.number}</button>)}</nav><p><span/> 파란색은 답을 입력한 문항이에요.</p></aside>
-        <div className="panel answer-card">{reviewing ? <>
-          <h2>답안 확인</h2><p className="muted">수정할 문항을 누르면 다시 입력할 수 있어요.</p><div className="answer-summary">{items.map((question, index) => <button key={question.id} onClick={() => { setStep(index); setReviewing(false); }}><span>{question.number}번</span><strong className={answers[question.id]?.trim() ? "" : "unanswered"}>{answers[question.id]?.trim() || "미입력"}</strong><ChevronRight size={16}/></button>)}</div><p className="readiness-note" role="status">{answeredCount < QUESTION_COUNT ? `아직 ${QUESTION_COUNT - answeredCount}문항의 답을 입력하지 않았어요. ` : "20문항의 답을 모두 확인했어요. "}결과 제출은 정식 오픈 후 이용할 수 있어요.</p><button className="button button-primary button-block" disabled>결과 제출 준비 중</button>
-        </> : <>
-          <div className="answer-card-meta"><span className="badge">{item.type === "choice" ? "선택형" : "단답형"}</span><span>{item.number} / {QUESTION_COUNT} 문항</span></div><p className="item-topic-label">이 문항에서 살펴보는 내용</p><h2 className="item-topic">{item.topic}</h2><div className="paper-reminder"><BookOpenCheck size={23}/><p>문제와 그림은 선생님이 나눠 준 검사지를 봐 주세요.<small>여기에는 출제 내용만 안내되어 있어요.</small></p></div>
-          {item.type === "choice" ? <fieldset className="choice-field"><legend>검사지에서 고른 보기 번호를 눌러 주세요.</legend><div className="number-options">{["①", "②", "③", "④"].map(choice => <button key={choice} type="button" aria-pressed={answers[item.id] === choice} className={answers[item.id] === choice ? "selected" : ""} onClick={() => setAnswers(previous => ({ ...previous, [item.id]: choice }))}>{choice}{answers[item.id] === choice && <Check size={18}/>}</button>)}</div></fieldset> : <label className="short-answer" htmlFor="written-answer">검사지에 적은 답을 입력해 주세요.<input key={item.id} id="written-answer" value={answers[item.id] ?? ""} maxLength={100} autoComplete="off" spellCheck={false} onChange={event => setAnswers(previous => ({ ...previous, [item.id]: event.target.value }))} placeholder="숫자, 글자 또는 기호를 입력해 주세요"/><small>답이 여러 개라면 쉼표(,)로 구분해 주세요.</small></label>}
-          <div className="question-actions"><button className="button button-quiet" disabled={step === 0} onClick={() => setStep(value => value - 1)}><ChevronLeft size={18}/> 이전</button><button className="button button-primary" onClick={() => step === QUESTION_COUNT - 1 ? setReviewing(true) : setStep(value => value + 1)}>{step === QUESTION_COUNT - 1 ? "답안 확인" : "다음 문항"}<ChevronRight size={18}/></button></div>
-        </>}</div>
-      </div>
-    </>}
-    {leaveOpen && <LeaveDialog onCancel={() => setLeaveOpen(false)} onConfirm={() => { setLeaveOpen(false); setStarted(false); setAnswers({}); setReviewing(false); setStep(0); }}/>} 
-  </section>;
-}
-
-function LeaveDialog({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  useEffect(() => { const dialog = dialogRef.current; dialog?.showModal(); return () => dialog?.close(); }, []);
-  return <dialog ref={dialogRef} className="modal" onCancel={onCancel} aria-labelledby="leave-title"><h2 id="leave-title">학년 선택으로 돌아갈까요?</h2><p className="muted">미리보기에서 입력한 답이 지워져요.</p><div className="button-row leave-actions"><button autoFocus className="button button-outline" onClick={onCancel}>계속 입력하기</button><button className="button button-primary" onClick={onConfirm}>돌아가기</button></div></dialog>;
-}
-
-function Results({ onNavigate }: Navigation) {
-  return <section className="container results-content"><div className="page-intro"><p className="eyebrow">나의 결과</p><h1>배움의 기록을 모아 봐요.</h1><p>진단 결과에서 나의 강점과 다음 배움을 살펴볼 수 있어요.</p></div><div className="panel results-empty"><span className="results-empty-icon"><ChartNoAxesCombined size={38}/></span><h2>로그인 후 나의 결과를 확인해요.</h2><p>회원가입과 결과 조회 기능을 준비하고 있어요.<br/>정식 오픈 후 진단을 완료하면 이곳에서 내 기록을 볼 수 있어요.</p><div className="button-row"><button className="button button-primary" onClick={() => onNavigate("login")}>로그인 화면 보기 <ArrowRight size={18}/></button><button className="button button-outline" onClick={() => onNavigate("diagnosis")}>진단 안내 보기</button></div></div></section>;
 }
