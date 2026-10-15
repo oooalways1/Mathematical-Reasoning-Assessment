@@ -1,13 +1,14 @@
 import { db, jsonError, privateJson, sameOrigin, studentSessionId } from '../_lib';
 import { isGrade, questionBlueprints } from '@/lib/diagnosis-blueprint';
 import { scoreDiagnosis, type AnswerKey } from '@/lib/diagnosis-model';
+import { createFeedback } from '@/lib/learning-support';
+import { readLearning } from '../learning/data';
 
 export async function GET(request: Request) {
   const id = await studentSessionId(request);
   if (!id) return jsonError('로그인 후 결과를 확인해 주세요.', 401);
   try {
-    const rows = await db().prepare('SELECT id, student_id AS studentId, grade, total_score AS totalScore, max_score AS maxScore, domains, completed_at AS completedAt, submission_method AS submissionMethod, key_version AS keyVersion FROM assessments WHERE student_id=? AND grade IS NOT NULL ORDER BY completed_at DESC').bind(id).all<Record<string, unknown>>();
-    return privateJson({ results: rows.results.map(row => ({ ...row, domains: JSON.parse(String(row.domains)) })) });
+    return privateJson(await readLearning(id, false));
   } catch { return jsonError('결과를 불러오지 못했습니다.', 503); }
 }
 
@@ -33,8 +34,9 @@ export async function POST(request: Request) {
     const answers = body.answers as Record<string, string>;
     const key = JSON.parse(row.answers) as AnswerKey;
     const score = scoreDiagnosis(grade, answers, key);
+    const feedback = createFeedback(grade, answers, key);
     const resultId = crypto.randomUUID(), completedAt = new Date().toISOString();
-    await database.prepare('INSERT INTO assessments (id, student_id, total_score, max_score, domains, answers, completed_at, grade, submission_method, key_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(resultId, id, score.totalScore, score.maxScore, JSON.stringify(score.domains), JSON.stringify(answers), completedAt, grade, String(body.method), row.version).run();
+    await database.prepare('INSERT INTO assessments (id, student_id, total_score, max_score, domains, answers, completed_at, grade, submission_method, key_version, feedback) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(resultId, id, score.totalScore, score.maxScore, JSON.stringify(score.domains), JSON.stringify(answers), completedAt, grade, String(body.method), row.version, JSON.stringify(feedback)).run();
     return privateJson({ result: { id: resultId, studentId: id, grade, totalScore: score.totalScore, maxScore: score.maxScore, domains: score.domains, completedAt, submissionMethod: body.method, keyVersion: row.version }, correct: score.correct }, { status: 201 });
   } catch { return jsonError('채점 결과를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.', 503); }
 }

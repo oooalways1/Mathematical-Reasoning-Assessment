@@ -1,0 +1,11 @@
+import { existsSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+const localVars = fileURLToPath(new URL('../.dev.vars', import.meta.url));
+const wrangler = fileURLToPath(new URL('../node_modules/wrangler/bin/wrangler.js', import.meta.url));
+const args = ['--import', './scripts/sites-env.mjs', wrangler, 'dev', '--config', 'dist/server/wrangler.json', '--local', '--persist-to', '.wrangler/state', '--ip', '127.0.0.1', '--inspector-port', '0'];
+if (existsSync(localVars)) args.push('--env-file', localVars);
+args.push(...process.argv.slice(2));
+const child = spawn(process.execPath, args, { stdio: 'inherit', env: process.env });
+child.on('error', error => { console.error(error.message); process.exitCode=1; });
+child.on('exit', code => { process.exitCode=code ?? 1; });

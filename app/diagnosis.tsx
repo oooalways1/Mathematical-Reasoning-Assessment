@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, ClipboardList, FileUp, ScanLine, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ClipboardList, FileUp, ScanLine } from 'lucide-react';
 import { GRADES, QUESTION_COUNT, questionBlueprints, type Grade } from '@/lib/diagnosis-blueprint';
 import type { DiagnosisResult, StudentProfile } from '@/lib/diagnosis-model';
 import { readAnswerFiles, type ScanResult } from '@/lib/scan-answers';
 import type { PortalPage } from './student-portal';
+import LearningJourney from './learning-journey';
 
 export default function Diagnosis({ student, initialGrade, sessionLoading, onNavigate }: { student: StudentProfile | null; initialGrade: Grade; sessionLoading: boolean; onNavigate: (page: PortalPage) => void }) {
   const [previewGrade, setPreviewGrade] = useState(initialGrade);
@@ -57,7 +58,7 @@ export default function Diagnosis({ student, initialGrade, sessionLoading, onNav
     finally { postingRef.current = false; setSubmitting(false); }
   }
   if (sessionLoading) return <section className="container diagnosis-content"><p role="status">가입한 학년을 확인하고 있어요.</p></section>;
-  if (result) return <section className="container diagnosis-content"><div className="panel diagnosis-complete"><ShieldCheck size={44}/><p className="eyebrow">채점과 저장 완료</p><h1>{grade}학년 진단 결과</h1><strong className="diagnosis-score">{result.totalScore}<small> / {result.maxScore}점</small></strong><p>학생 계정에 결과를 저장했어요. 다시 로그인해도 나의 결과에서 확인할 수 있어요.</p><div className="result-areas">{Object.entries(result.domains).map(([domain, score]) => <span key={domain}>{domain}<strong>{score}%</strong></span>)}</div><button className="button button-primary" onClick={() => onNavigate('results')}>나의 결과 보기 <ArrowRight size={18}/></button></div></section>;
+  if (result && student) return <section className="container diagnosis-content"><p className="success-message" role="status">채점과 저장이 완료됐어요. 오답 분석부터 다음 배움을 시작해요.</p><LearningJourney student={student} initialResultId={result.id} onDiagnose={() => { setResult(null); setAnswers({}); setMethod(null); setScan(null); setConfirmed(false); }}/></section>;
   return <section className="container diagnosis-content">
     <div className="page-intro"><p className="eyebrow">진단하기</p><h1>{student ? `${student.name}님의 ${grade}학년 진단` : '우리 학년의 진단을 시작해요.'}</h1><p>{student ? '가입한 학년이 자동으로 선택됐어요. 답안 제출 방법을 골라 주세요.' : '회원가입 또는 로그인하면 가입한 학년으로 진단할 수 있어요.'}</p></div>
     {!student && <><div className="button-row"><button className="button button-primary" onClick={() => onNavigate('login')}>로그인</button><button className="button button-outline" onClick={() => onNavigate('signup')}>회원가입</button></div><fieldset className="grade-grid"><legend>학년별 답안 미리보기</legend>{GRADES.map(value => <label key={value} className={`grade-card ${grade === value ? 'selected' : ''}`}><input type="radio" name="preview-grade" checked={grade === value} onChange={() => { setPreviewGrade(value); setAnswers({}); setScan(null); }}/><strong>{value}학년</strong></label>)}</fieldset></>}

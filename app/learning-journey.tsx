@@ -1,0 +1,76 @@
+"use client";
+import { useEffect, useState, type FormEvent } from 'react';
+import { ArrowRight, BookOpenCheck, Check, ClipboardList, Printer, TrendingUp } from 'lucide-react';
+import type { DiagnosisResult, ItemFeedback, LearningProgress } from '@/lib/diagnosis-model';
+
+type Learner = { id: string; name: string; grade: number; classroom: string };
+type Tab = 'history' | 'analysis' | 'support' | 'growth' | 'report';
+const menus: [Tab, string][] = [['history', '진단 이력'], ['analysis', '오답 분석'], ['support', '학습 로드맵'], ['growth', '성장 추이'], ['report', '리포트']];
+const date = (value: string) => new Date(value).toLocaleString('ko-KR');
+
+export default function LearningJourney({ student, teacher = false, initialResultId, onDiagnose }: { student: Learner; teacher?: boolean; initialResultId?: string; onDiagnose?: () => void }) {
+  const [results, setResults] = useState<DiagnosisResult[]>([]), [selected, setSelected] = useState(initialResultId ?? '');
+  const [tab, setTab] = useState<Tab>(initialResultId ? 'analysis' : 'history'), [loading, setLoading] = useState(true), [error, setError] = useState('');
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    let active = true; setLoading(true); setError('');
+    fetch(teacher ? `/api/learning?studentId=${encodeURIComponent(student.id)}` : '/api/learning', { cache: 'no-store' }).then(async response => {
+      const data = await response.json() as { results: DiagnosisResult[]; error?: string };
+      if (!response.ok) throw new Error(data.error || '기록을 불러오지 못했어요.');
+      if (active) { setResults(data.results); setSelected(previous => data.results.some(result => result.id === previous) ? previous : data.results[0]?.id ?? ''); }
+    }).catch(error => { if (active) setError(error.message); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [student.id, teacher, refresh]);
+  const result = results.find(result => result.id === selected);
+  const wrong = result?.feedback?.filter(item => !item.correct) ?? [];
+  const progress = result?.progress ?? [];
+  const done = wrong.filter(item => progress.some(p => p.questionId === item.id && p.completedAt)).length;
+  const weak = Object.entries(result?.domains ?? {}).filter(([,score]) => score < 80).sort((a,b) => a[1] - b[1]);
+  const strengths = Object.entries(result?.domains ?? {}).filter(([,score]) => score >= 80);
+  function choose(id: string, next: Tab) { setSelected(id); setTab(next); }
+  return <div className="learning-journey">
+    <div className="section-heading"><div><p className="eyebrow">{teacher ? '학생 상세 · 교사 보기' : '나의 학습'}</p><h1>{student.name}님의 배움 기록</h1><p className="muted">{student.grade}학년 {student.classroom} · 진단에서 다음 배움까지, 한 걸음씩 이어 가요.</p></div><div className="button-row"><button className="button button-outline" onClick={() => setRefresh(value => value+1)}>새로고침</button>{onDiagnose && <button className="button button-primary" onClick={onDiagnose}>새 진단 시작 <ArrowRight size={18}/></button>}</div></div>
+    <div className="journey-groups" aria-hidden="true"><span>진단</span><span>분석</span><span>학습 지원</span><span>학습 관리</span></div>
+    <nav className="journey-tabs" aria-label="진단 이후 학습 메뉴">{menus.map(([id,label]) => <button key={id} aria-current={tab === id ? 'page' : undefined} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>)}</nav>
+    {loading && <p role="status">배움 기록을 불러오고 있어요.</p>}
+    {error && <p className="alert" role="alert">{error}</p>}
+    {!loading && !error && !results.length && <div className="panel results-empty"><ClipboardList size={36}/><h2>아직 저장된 진단이 없어요.</h2><p>답안을 제출하면 분석과 학습 로드맵이 만들어져요.</p>{onDiagnose && <button className="button button-primary" onClick={onDiagnose}>첫 진단 시작하기</button>}</div>}
+    {!loading && results.length > 0 && <>
+      {tab !== 'history' && <label className="result-picker">살펴볼 진단<select value={selected} onChange={event => setSelected(event.target.value)}>{results.map(r => <option key={r.id} value={r.id}>{date(r.completedAt)} · {r.totalScore}/{r.maxScore}점{r.legacy ? ' · 이전 진단' : ''}</option>)}</select></label>}
+      {tab === 'history' && <section><div className="section-heading"><h2>진단 이력</h2><span className="badge">총 {results.length}개의 기록</span></div><div className="saved-results">{results.map(r => <article className="panel history-card" key={r.id}><div className="section-heading"><div><span className="badge">{r.legacy ? '이전 진단' : `${r.grade}학년 · ${r.submissionMethod === 'scan' ? '파일 답안' : '직접 입력'}`}</span><p>{date(r.completedAt)}</p></div><button className="button button-outline" onClick={() => choose(r.id, 'analysis')}>분석 보기 <ArrowRight size={17}/></button></div><div className="record-metrics"><div><span>점수</span><strong>{r.totalScore}/{r.maxScore}</strong></div><div><span>정답률</span><strong>{Math.round(r.totalScore/r.maxScore*100)}%</strong></div><div><span>복습 완료</span><strong>{r.feedback ? `${r.feedback.filter(item => !item.correct && r.progress?.some(p => p.questionId === item.id && p.completedAt)).length} / ${r.feedback.filter(item => !item.correct).length}` : '문항 정보 없음'}</strong></div></div></article>)}</div></section>}
+      {result && tab === 'analysis' && <section><h2>이번 진단을 살펴봐요.</h2><div className="analysis-summary"><article className="panel"><h3>잘 해낸 영역</h3><p>{strengths.length ? strengths.map(([name]) => name).join(' · ') : '문항별 정답을 살펴보며 잘 해낸 부분을 찾아봐요.'}</p><small>이번 진단에서 정답률 80% 이상인 영역</small></article><article className="panel"><h3>다음에 연습할 영역</h3><p>{weak.length ? weak.map(([name]) => name).join(' · ') : '이번에 다룬 영역을 잘 해결했어요. 풀이 설명에도 도전해 봐요.'}</p><small>이번 진단에서 정답률 80% 미만인 영역</small></article></div><AreaScores result={result}/><p className="form-note">입력한 답과 제출 당시 정답표, 문항의 학습 내용을 기준으로 분석해요. 오답만으로 틀린 이유를 확정하지는 않아요.</p>{result.feedback ? <><div className="section-heading"><h3>문항별 답안과 피드백</h3><button className="button button-primary" onClick={() => setTab('support')}>추천 연습으로 이어가기</button></div><div className="feedback-list">{result.feedback.map(item => <article className={`panel feedback-card ${item.correct ? 'is-correct' : 'needs-practice'}`} key={item.id}><div className="section-heading"><strong>{item.number}번 · {item.domain}</strong><span className={`badge ${item.correct ? 'correct-badge' : 'wrong-badge'}`}>{item.correct ? '정답' : item.blank ? '미입력' : '다시 살펴보기'}</span></div><h3>{item.topic}</h3><div className="answer-comparison"><span>내 답 <b>{item.given || '미입력'}</b></span><span>등록된 정답 <b>{item.expected.join(' 또는 ')}</b></span></div><p>{item.guidance}</p>{progress.find(p => p.questionId === item.id)?.teacherNote && <p className="teacher-note">선생님 피드백: {progress.find(p => p.questionId === item.id)?.teacherNote}</p>}</article>)}</div></> : <LegacyDetails result={result}/>}</section>}
+      {result && tab === 'support' && <section><div className="section-heading"><div><h2>나에게 맞는 학습 로드맵</h2><p className="muted">{wrong.length ? '틀리거나 비워 둔 문항의 학습 내용을 순서대로 연습해요.' : '이번 진단의 학습 내용을 더 연습해 봐요.'}</p></div><span className="badge">복습 {done} / {wrong.length} 완료</span></div>{result.feedback ? <><ol className="roadmap-steps"><li>학습 내용을 다시 살펴보기</li><li>관련 연습 문제 풀기</li><li>풀이를 확인하고 설명하기</li></ol><p className="form-note">아래 문제는 원 검사지와 별도로 만든 관련 연습이에요. 연습 점수는 진단 점수에 합산하지 않아요.</p><div className="practice-list">{(wrong.length ? wrong : result.feedback).map(item => <PracticeCard key={`${result.id}-${item.id}`} resultId={result.id} item={item} progress={progress.find(p => p.questionId === item.id)} teacher={teacher} onSaved={setResults}/>)}</div></> : <LegacyDetails result={result}/>}</section>}
+      {tab === 'growth' && <section><h2>차곡차곡 쌓이는 성장</h2><Growth results={results}/><div className="table-scroll panel"><table className="data-table"><thead><tr><th>진단일</th><th>학년 / 기준</th><th>점수</th><th>정답률</th><th>관련 연습</th></tr></thead><tbody>{results.map(r => <tr key={r.id}><td>{date(r.completedAt)}</td><td>{r.grade}학년{r.legacy && ' · 이전 진단'}</td><td>{r.totalScore}/{r.maxScore}</td><td>{Math.round(r.totalScore/r.maxScore*100)}%</td><td>{r.progress?.filter(p => p.completedAt).length ?? 0}개 완료</td></tr>)}</tbody></table></div><p className="form-note">학년·문항·정답표가 다르면 직접적인 점수 비교에 주의해 주세요. 같은 연습을 반복해 맞힌 기록은 진단 성적 향상을 뜻하지 않아요.</p><h3>저장된 연습 답안</h3><div className="table-scroll panel"><table className="data-table"><thead><tr><th>연습일</th><th>연결 문항</th><th>입력한 답</th><th>결과</th></tr></thead><tbody>{results.flatMap(r => (r.attempts ?? []).map(attempt => <tr key={attempt.id}><td>{date(attempt.attemptedAt)}</td><td>{r.feedback?.find(item => item.id === attempt.questionId)?.number ?? attempt.questionId}번</td><td>{attempt.answer}</td><td>{attempt.correct ? '정답' : '다시 연습'}</td></tr>))}</tbody></table></div>{!results.some(r => r.attempts?.length) && <p className="muted">아직 저장된 연습 답안이 없어요.</p>}</section>}
+      {result && tab === 'report' && <section className="learning-report"><div className="section-heading"><h2>{teacher ? '교사용 학생 리포트' : '나의 배움 리포트'}</h2><button className="button button-outline print-action" onClick={() => window.print()}><Printer size={18}/> 인쇄 · PDF 저장</button></div><article className="panel report-sheet"><p className="eyebrow">수리력 한걸음 · 진단과 학습 기록</p><h2>{student.name} · {student.grade}학년 {student.classroom}</h2><p>진단일 {date(result.completedAt)}</p><strong className="report-score">{result.totalScore} / {result.maxScore}점</strong><AreaScores result={result}/><h3>배움의 다음 걸음</h3><p>{weak.length ? `${weak.map(([name]) => name).join(' · ')} 영역을 먼저 연습해 보세요.` : '이번 진단의 풀이를 설명하고 관련 연습을 이어 가세요.'}</p><p>추천 복습 {wrong.length}개 중 {done}개 완료</p>{wrong.map(item => { const p = progress.find(p => p.questionId === item.id); return <div className="report-item" key={item.id}><b>{item.number}번 · {item.topic}</b><p>내 답: {item.given || '미입력'} / 정답: {item.expected.join(' 또는 ')} · {p?.completedAt ? '복습 완료' : '복습 예정'}</p>{p?.teacherNote && <p>선생님 피드백: {p.teacherNote}</p>}</div>; })}{!result.feedback && <p>이전 기록에는 문항별 분석 정보가 없어요. 원래 답안과 점수는 보존되어 있어요.</p>}<small>이 결과는 이번 검사에서 다룬 학습 내용을 돌아보기 위한 자료예요.</small></article></section>}
+    </>}
+  </div>;
+}
+
+function AreaScores({ result }: { result: DiagnosisResult }) {
+  return <div className="result-areas">{Object.entries(result.domains).map(([area, score]) => <span key={area}>{area}<strong>{score}%</strong></span>)}</div>;
+}
+function LegacyDetails({ result }: { result: DiagnosisResult }) {
+  return <div className="panel legacy-details"><h3>이전 진단 기록</h3><p>저장 당시 문항별 정답 정보가 없어 자동 분석과 추천 연습을 만들 수 없어요. 새 진단부터 상세 피드백을 제공해요.</p><details><summary>보존된 원래 답안 보기</summary><pre>{JSON.stringify(result.answers ?? {}, null, 2)}</pre></details></div>;
+}
+function PracticeCard({ item, progress, resultId, teacher, onSaved }: { item: ItemFeedback; progress?: LearningProgress; resultId: string; teacher: boolean; onSaved: (results: DiagnosisResult[]) => void }) {
+  const [answer, setAnswer] = useState(''), [note, setNote] = useState(progress?.teacherNote ?? '');
+  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
+  useEffect(() => { setNote(progress?.teacherNote ?? ''); }, [progress?.teacherNote]);
+  async function save(event: FormEvent) {
+    event.preventDefault(); if (busy) return; setBusy(true); setError(''); setNotice('');
+    try {
+      const response = await fetch('/api/learning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assessmentId: resultId, questionId: item.id, ...(teacher ? { note } : { answer }) }) });
+      const data = await response.json() as { results: DiagnosisResult[]; error?: string };
+      if (!response.ok) throw new Error(data.error || '학습 기록을 저장하지 못했어요.');
+      onSaved(data.results); setNotice(teacher ? '지도 의견을 저장했어요.' : '연습 답안과 채점 결과를 저장했어요.');
+    } catch (error) { setError(error instanceof Error ? error.message : '저장하지 못했어요.'); }
+    finally { setBusy(false); }
+  }
+  return <article className="panel practice-card"><div className="section-heading"><div><p className="eyebrow"><BookOpenCheck size={16}/> {item.number}번과 연결된 연습 · {item.domain}</p><h3>{item.topic}</h3></div>{progress?.completedAt && <span className="badge correct-badge"><Check size={15}/> 복습 완료</span>}</div><p className="practice-prompt">{item.practice.prompt}</p><details><summary>생각하는 방법 보기</summary><p>{item.practice.hint}</p></details>{teacher ? <><p>연습 정답: {item.practice.accepted.join(' 또는 ')}</p><p>{item.practice.explanation}</p><form className="form-stack" onSubmit={save}><label>선생님 지도 의견<textarea maxLength={1000} rows={3} value={note} onChange={event => setNote(event.target.value)} placeholder="학생에게 전할 다음 학습 방법을 적어 주세요."/></label><button className="button button-outline" disabled={busy}>{busy ? '저장 중…' : '지도 의견 저장'}</button></form></> : <form className="practice-form" onSubmit={save}><label>{item.number}번 관련 연습 답<input maxLength={100} required value={answer} onChange={event => setAnswer(event.target.value)} placeholder="답을 적어 주세요."/></label><button className="button button-primary" disabled={busy}>{busy ? '저장 중…' : '연습 답 확인'}</button></form>}{progress && <div className="practice-status"><p>연습 {progress.attempts}회 · 최근 답: {progress.latestAnswer || '아직 없음'}{progress.attempts > 0 && ` · ${progress.correct ? '정답' : '다시 연습해요'}`}</p>{progress.attempts > 0 && <p>{item.practice.explanation}</p>}{progress.teacherNote && <p className="teacher-note">선생님 피드백: {progress.teacherNote}</p>}{progress.completedAt && <small>처음 맞힌 날: {date(progress.completedAt)}</small>}</div>}{error && <p className="alert" role="alert">{error}</p>}{notice && <p className="success-message" role="status">{notice}</p>}</article>;
+}
+function Growth({ results }: { results: DiagnosisResult[] }) {
+  const rows = [...results].reverse(), values = rows.map(result => Math.round(result.totalScore/result.maxScore*100));
+  if (rows.length < 2) return <div className="panel growth-empty"><TrendingUp size={32}/><h3>다음 진단과 함께 변화를 살펴봐요.</h3><p>현재 {rows.length}개의 기록이 있어요. 진단이 두 번 이상 쌓이면 성장 그래프를 보여드려요.</p></div>;
+  const points = values.map((score,index) => `${40+index/(values.length-1)*620},${170-score*1.4}`).join(' ');
+  return <div className="panel growth-chart"><h3>진단별 정답률</h3><svg viewBox="0 0 700 220" role="img" aria-label={rows.map((result,index) => `${index+1}회 ${new Date(result.completedAt).toLocaleDateString('ko-KR')}: ${values[index]}%`).join(', ')}>{[0,50,100].map(value => <g key={value}><line x1="40" x2="660" y1={170-value*1.4} y2={170-value*1.4} stroke="#e3eaf3"/><text x="4" y={175-value*1.4} fontSize="12" fill="#64748b">{value}</text></g>)}<polyline points={points} fill="none" stroke="#377cf5" strokeWidth="3"/>{values.map((value,index) => <g key={rows[index].id}><circle cx={40+index/(values.length-1)*620} cy={170-value*1.4} r="5" fill="#377cf5"/><text x={40+index/(values.length-1)*620} y="203" textAnchor="middle" fontSize="12" fill="#64748b">{index+1}회</text></g>)}</svg></div>;
+}

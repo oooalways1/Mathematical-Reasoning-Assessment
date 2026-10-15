@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, ArrowUpRight, BookOpenCheck, Calculator, ChartNoAxesCombined, Check, ChevronLeft, ChevronRight, CircleHelp, ClipboardList, Eye, EyeOff, GraduationCap, LockKeyhole, Mail, Shapes, Sparkles, TrendingUp, UserRoundPlus } from "lucide-react";
+import { ArrowRight, BookOpenCheck, Calculator, ChartNoAxesCombined, Check, ChevronLeft, CircleHelp, ClipboardList, Eye, EyeOff, GraduationCap, LockKeyhole, Mail, Shapes, Sparkles, TrendingUp } from "lucide-react";
 import { domains, domainDescriptions } from "@/lib/assessment";
-import { GRADES, QUESTION_COUNT, questionBlueprints, type Grade } from "@/lib/diagnosis-blueprint";
+import { GRADES, QUESTION_COUNT, type Grade } from "@/lib/diagnosis-blueprint";
 import type { StudentProfile } from '@/lib/diagnosis-model';
 import Diagnosis from './diagnosis';
 import MyResults from './my-results';
@@ -29,7 +29,7 @@ function Landing({ onNavigate }: Navigation) {
         <p className="hero-pill"><Sparkles size={16}/> 초등 1·2·3학년 수리력 진단</p>
         <h1 id="home-title">수학을 이해하는 힘,<br/><em>한 걸음씩</em> 자라요.</h1>
         <p className="landing-description">내가 잘하는 것과 더 배워 갈 것을 알아보는 시간.<br className="desktop-break"/>나에게 맞는 배움의 시작을 함께 찾아요.</p>
-        <div className="button-row hero-actions"><button className="button button-primary button-large" onClick={() => onNavigate("diagnosis")}>진단하기 <ArrowRight size={21}/></button><button className="button button-outline button-large" onClick={() => onNavigate("signup")}>회원가입</button></div>
+        <div className="button-row hero-actions"><button className="button button-primary button-large" onClick={() => onNavigate("diagnosis")}>진단 시작하기 <ArrowRight size={21}/></button><button className="button button-outline button-large" onClick={() => onNavigate("signup")}>회원가입</button></div>
         <div className="hero-facts"><span><ClipboardList size={17}/> 총 {QUESTION_COUNT}문항</span><span><GraduationCap size={18}/> 학년별 진단</span><span><Check size={17}/> 선택형 · 단답형</span></div>
       </div>
       <div className="math-art" aria-hidden="true">
@@ -42,12 +42,8 @@ function Landing({ onNavigate }: Navigation) {
     </section>
 
     <section className="portal-menu" aria-labelledby="menu-title">
-      <div className="section-heading"><div><p className="eyebrow">나의 수리력 한걸음</p><h2 id="menu-title">무엇부터 해 볼까요?</h2></div><p className="section-note">처음이라면 회원가입부터 시작해요.</p></div>
-      <div className="quick-grid">
-        <button className="quick-card" onClick={() => onNavigate("signup")}><span className="quick-icon mint"><UserRoundPlus size={27}/></span><span className="quick-content"><strong>회원가입</strong><span>이메일로 나만의 계정을 준비해요.</span></span><ArrowUpRight size={21}/></button>
-        <button className="quick-card featured" onClick={() => onNavigate("diagnosis")}><span className="quick-icon blue"><ClipboardList size={27}/></span><span className="quick-content"><strong>진단하기</strong><span>우리 학년의 {QUESTION_COUNT}문항을 만나 보세요.</span></span><ArrowUpRight size={21}/></button>
-        <button className="quick-card" onClick={() => onNavigate("results")}><span className="quick-icon lavender"><ChartNoAxesCombined size={27}/></span><span className="quick-content"><strong>나의 결과</strong><span>진단 결과와 배움의 기록을 살펴봐요.</span></span><ArrowUpRight size={21}/></button>
-      </div>
+      <div className="section-heading"><div><p className="eyebrow">나의 수리력 한걸음</p><h2 id="menu-title">진단에서 다음 배움까지</h2></div><p className="section-note">진단 후 ‘나의 학습’에서 이어 가요.</p></div>
+      <div className="learning-feature-grid">{[['진단', '우리 학년 20문항의 답을 입력하고 결과를 저장해요.', ClipboardList], ['분석', '내 답과 정답을 비교하고, 다시 배울 내용을 알아봐요.', ChartNoAxesCombined], ['학습 지원', '오답과 연결된 연습 문제를 풀고 풀이를 확인해요.', BookOpenCheck], ['학습 관리', '연습 기록과 성장 추이를 살펴보고 리포트를 만들어요.', TrendingUp]].map(([title,description,Icon], index) => { const FeatureIcon = Icon as typeof ClipboardList; return <article className={`panel learning-feature tone-${index}`} key={String(title)}><span className="domain-icon"><FeatureIcon size={26}/></span><h3>{String(title)}</h3><p>{String(description)}</p></article>; })}</div>
     </section>
 
     <section id="guide" className="portal-guide" aria-labelledby="guide-title">

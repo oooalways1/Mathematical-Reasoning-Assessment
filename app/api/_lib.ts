@@ -29,7 +29,6 @@ function cookieValue(request: Request, name: string) {
 }
 
 export async function isTeacher(request: Request) {
-  if (!isTeacherAccount(request)) return false;
   const token = cookieValue(request, "teacher_session");
   if (!token) return false;
   const [expiresAt, signature, extra] = token.split(".");

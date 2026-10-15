@@ -29,6 +29,20 @@
       "when": 1792020937676,
       "tag": "0003_diagnosis_grading",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792023621483,
+      "tag": "0004_learning_journey",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792023679951,
+      "tag": "0005_practice_attempt_history",
+      "breakpoints": true
     }
   ]
 }

@@ -1,94 +1,84 @@
 # 수리력 한걸음
 
-초등 1·2·3학년의 수리력을 살펴보는 학년별 20문항 진단 웹앱입니다.
+초등 1·2·3학년의 학년별 20문항 진단과 학습 지원 웹앱입니다.
 
-- 웹앱: https://numeracy-diagnosis.smokypixie.chatgpt.site
-- GitHub: https://github.com/oooalways1/Mathematical-Reasoning-Assessment
+- 소스: https://github.com/oooalways1/Mathematical-Reasoning-Assessment
+- 기존 Sites 주소: https://numeracy-diagnosis.smokypixie.chatgpt.site
+- 이번 변경은 로컬 및 GitHub에 반영합니다. 학생용 운영은 별도 Cloudflare 배포가 필요합니다.
+- Sites 공식 이용 안내는 13세 미만 아동을 대상으로 한 서비스를 지원하지 않습니다. 기존 Sites 주소를 초등 학생의 실제 운영 주소로 안내하지 않습니다.
 
-## 현재 프론트엔드
+## 학생 이용 흐름
 
-GPT Sites에서 회원가입과 진단 답안 제출을 제공합니다. 실제 채점은 교사가 해당 학년의 최종 정답표를 등록한 뒤 시작합니다.
+1. Firebase 이메일/비밀번호로 회원가입합니다. 비밀번호는 최소 6자리이며 비밀번호를 D1에 저장하지 않습니다.
+2. 가입한 학년이 자동 적용됩니다. 검사지의 답을 직접 입력하거나 PDF/JPG/PNG에서 인식 후 확인합니다.
+3. 서버가 교사가 등록한 정답표로 채점하고 답안, 점수, 문항별 피드백을 저장합니다.
+4. **나의 학습**에서 진단 이력 → 오답 분석 → 학습 로드맵 → 성장 추이 → 리포트를 확인합니다.
+5. 오답과 연결된 별도의 연습 문제를 풀면 연습 답안·정오·시도 횟수·처음 맞힌 날짜가 저장됩니다.
+6. 학생은 본인의 기록과 선생님 지도 의견만 조회합니다. 다시 로그인해도 기록을 이어 볼 수 있습니다.
 
-- 홈: 회원가입, 진단하기, 나의 결과를 선택하는 첫 화면입니다.
-- 회원가입·로그인: Firebase Email/Password 인증을 통해 실제 계정을 만들고 로그인합니다. 학생 프로필과 Firebase UID는 D1에 연결합니다.
-- 진단하기: 가입한 1·2·3학년을 자동으로 선택합니다. 새로고침이나 재로그인 후에도 저장된 학년을 불러옵니다. 20문항 직접 입력 또는 PDF·JPG·PNG 답안 인식을 사용할 수 있습니다.
-- 나의 결과: 제출 후 서버에서 채점한 결과를 학생별로 저장하고 다시 조회합니다. 본인 기록만 조회할 수 있습니다.
+문항당 5점, 총 100점이며 부분점수는 없습니다. 미입력은 오답 처리합니다. 문항 구성표에는 실제 지문·보기·그림이 없으므로 검사지와 함께 사용하는 답안 입력 화면입니다. 학년별로 검사에서 다루는 영역은 다릅니다. 영역별 문항 수는 표시하지 않습니다.
 
-제공된 문항 구성표의 출제 요소와 유형을 `lib/diagnosis-blueprint.ts`에 반영했습니다. 실제 문제 지문·그림·보기는 구성표에 없으므로 검사지와 함께 사용하는 **답안 입력 화면**입니다. 제출 전 답안은 기기에만 보관하며 화면을 나가면 지워집니다. 제출한 답안과 점수는 D1에 저장합니다. 문항당 5점, 총 100점이며 부분점수는 부여하지 않습니다.
-원본 번호·정답 확인 사항은 `docs/question-source.md`를 참고하세요.
+## 교사 관리
 
-## 교사 사용
+- 사이트 맨 아래 **관리페이지**에서 관리자 비밀번호만 입력합니다. ChatGPT 교사 로그인이 필요하지 않습니다.
+- 요청된 초기 비밀번호는 **1111**이며 서버 환경변수 `TEACHER_PASSWORD`로 설정합니다. 클라이언트에 정답 비밀번호를 넣지 않습니다.
+- 짧고 공개된 초기 비밀번호로는 학생 개인정보를 충분히 보호할 수 없습니다. 실제 학생 운영 전 길고 독립적인 관리자 비밀번호로 변경하세요.
+- 관리자 쿠키는 HttpOnly/Secure/SameSite이며 8시간 후 만료됩니다. 같은 접속 주소의 관리자 비밀번호 시도는 15분 동안 10회로 제한합니다.
+- **학생 관리 → 학생 상세**에서 모든 학생의 진단 이력, 원래 답안, 정답, 오답 분석, 관련 연습 답안, 복습 진행 및 리포트를 확인합니다.
+- **학습 로드맵**에서 문항별 지도 의견을 저장하면 학생에게도 표시됩니다.
+- **정답 설정**에서 학년별 20문항 정답을 확정해야 실제 채점이 가능합니다. 선택형은 1~4번, 허용 답의 대안은 `|`로 구분합니다.
+- 학생 추가는 명부 등록 기능입니다. Firebase 이메일 계정을 생성하는 기능은 학생 회원가입입니다.
+- 진단 기록 CSV 다운로드와 개인 리포트 인쇄/PDF 저장을 제공합니다.
 
-1. 웹앱 맨 아래 **관리페이지**를 클릭합니다.
-2. 배포 환경에 등록된 교사 ChatGPT 계정으로 로그인합니다.
-3. 관리자 비밀번호를 입력합니다.
-4. **학생 관리 → 학생 추가**에서 1~3학년 학생 정보를 등록합니다. 이 기능은 교사의 학생 명부 등록이며, 이메일 계정 생성이 아닙니다.
-5. **정답 설정**에서 학년별 20문항의 최종 번호와 정답을 입력하고 확인한 후 저장합니다. 선택형은 1~4번, 단답형 허용 답은 `|`로 구분합니다. 복수 답의 순서가 달라도 정답이면 두 표기를 각각 허용 답으로 등록합니다.
-6. **진단 기록**에서 기존 이력과 영역별 점수를 확인합니다.
+제출 당시 정답과 피드백 및 연습 문제를 결과에 함께 저장하므로 정답표가 변경되어도 과거 분석은 바뀌지 않습니다. 이전 진단의 답안과 점수도 보존합니다. 상세 피드백이 저장되지 않았던 과거 기록에는 새로운 정답표를 임의 적용하지 않습니다.
 
-학생의 참여코드 입력, 코드 다운로드·복사 UI는 이메일 회원가입 화면으로 전환했습니다. 기존 진단 데이터는 유지합니다. 신규 채점은 `/api/diagnosis`를 사용하며 학생 ID와 학년을 로그인 세션과 DB에서 확인합니다. 제출 당시 정답표 버전을 결과와 함께 저장합니다. 정답표가 없는 학년은 채점을 시작하지 않습니다.
+## 자동 분석 및 학습 지원
 
-## 스캔 답안 인식
+자동 분석은 입력 답안과 확정 정답표, 문항의 학습 내용에 근거합니다. 정답·오답·미입력과 해당 영역 정답률을 표시합니다. 80% 이상 영역은 이번 검사의 강점, 80% 미만 영역은 연습 권장으로 안내합니다. 임의의 오개념이나 학습 장애를 추정하지 않습니다.
 
-- PDF·JPG·PNG: 합계 20MB 이하, 최대 8개 파일 또는 8쪽.
-- `1: 2`, `2: 15`처럼 번호와 답이 한 줄씩 적힌 답안지를 읽습니다. `/answer-sheet?grade=1`에서 권장 양식을 인쇄하거나 PDF로 저장할 수 있습니다.
-- PDF.js와 Tesseract.js가 기기 안에서 답안을 읽습니다. 인식 모델과 Worker는 사이트 자체에서 제공합니다. 원본 파일을 다른 OCR 서비스로 보내거나 서버에 저장하지 않습니다.
-- 인쇄된 번호형 답안에서 동작을 확인했습니다. 손글씨, 표 안의 답, OMR 마킹, 흐린 스캔, 완성된 시험지의 문제와 보기는 정확한 인식을 보장하지 않습니다. 인식된 답을 원본과 비교하고 확인한 다음 제출해야 하며, 빠진 답은 직접 입력합니다.
-- 제출 시 답안만 서버로 전송하며 교사가 확정한 정답으로 자동 채점합니다. 미입력 문항은 오답 처리합니다.
+관련 연습은 원 검사지와 별도로 만든 54개의 기초 문제를 사용합니다. 2학년의 1학년 연결 문항은 원래 학년 내용을 적용합니다. 연습은 단일 문항 복습이며 연습 성적을 진단 점수에 합산하지 않습니다. 풀이 설명은 실제 풀이 가능한 연습 문제에 제공합니다.
 
-공개 방문자에게 전체 학생 명단과 점수는 제공하지 않습니다.
-교사 데이터 API는 허용된 교사 계정과 관리자 세션을 함께 확인합니다.
-이전 진단은 기존 영역 명칭으로 보존하며, 신규 진단은 다음 네 영역을 사용합니다.
+## 스캔 답안
 
-## 진단 영역
+- PDF/JPG/PNG 합계 20MB 이하, 최대 8개 파일 또는 8쪽.
+- `1: 2`, `2: 15`처럼 번호와 답이 한 줄씩 적힌 답안지를 읽습니다.
+- `/answer-sheet?grade=1`에서 권장 답안지 양식을 인쇄할 수 있습니다.
+- PDF.js/Tesseract가 기기 안에서 읽습니다. 원본을 외부 OCR 서비스로 보내거나 서버에 보관하지 않습니다.
+- 손글씨·OMR·흐린 파일은 잘못 읽을 수 있습니다. 인식 답을 원본과 비교하고 수정한 다음 제출하세요.
 
-수와 연산 · 변화와 관계 · 도형과 측정 · 자료와 가능성.
+## 기술과 저장
 
-학년별 총 20문항이며, 학년에 따라 다루는 영역이 다릅니다. 화면에는 영역별 문항 수를 표시하지 않습니다.
+React/TypeScript/Vinext · Cloudflare Workers API · Cloudflare D1/Drizzle · Firebase Authentication.
 
-## 기술 구성
+D1에는 학생 프로필과 Firebase UID, 제출 답안/점수/피드백, 연습 기록, 지도 의견을 저장합니다. Firebase에는 인증 계정을 저장합니다. 원본 스캔은 서버에 저장하지 않습니다. GitHub에는 소스와 스키마만 저장하고 학생 실데이터나 비밀키를 넣지 않습니다.
 
-- React / TypeScript / Vinext
-- Cloudflare Workers에서 실행되는 API
-- Cloudflare D1 / Drizzle: 학생, 참여코드, 진단 결과 저장
-- Sites: 호스팅과 배포, 교사 ChatGPT 로그인
+진단 영역: 수와 연산 · 변화와 관계 · 도형과 측정 · 자료와 가능성.
 
-Firebase 이메일 인증은 `/api/auth/signup`·`/api/auth/login`에서 처리합니다. Cloudflare 환경변수 `FIREBASE_API_KEY`에 Firebase 웹 API 키를 넣고, Firebase Authentication에서 Email/Password 제공업체를 켜야 합니다. 비밀번호는 사이트 DB에 저장하지 않고 Firebase로 전달하며, 학생 프로필과 Firebase UID만 D1에 연결합니다. GitHub에는 소스와 DB 스키마만 저장합니다.
-실제 학생 데이터, 비밀번호, 세션 서명 비밀키는 GitHub에 포함하지 않습니다.
+## 개발 환경 및 DB 변경
 
-## 개발 환경
-
-Node.js 22.13 이상이 필요합니다.
+Node.js 22.13 이상.
 
 ```sh
 npm run install:ci
-npx tsc --noEmit --incremental false
 npm run build
-```
-
-로컬 DB는 처음 한 번 다음 순서로 초기화합니다. 이미 적용한 마이그레이션은 다시 실행하지 않습니다.
-
-```sh
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_lucky_silver_centurion.sql
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_overrated_miracleman.sql
 npm start -- --port 4173
 ```
 
-로컬 기본 주소는 http://127.0.0.1:4173 입니다.
-로컬 운영본 미리보기는 Sites의 ChatGPT 인증 헤더를 제공하지 않으므로 교사 인증은 배포 환경에서 사용합니다.
+로컬 실행 전에 무시되는 `.dev.vars` 파일에 환경변수를 설정합니다. `SESSION_SECRET`은 무작위 32바이트 이상으로 만드세요. 값을 GitHub에 올리지 않습니다.
 
-## 배포 설정
-
-Sites의 런타임 환경 변수에 다음 키를 등록합니다. 값을 소스에 쓰지 않습니다.
-
-| 키 | 용도 |
+| 변수 | 용도 |
 |---|---|
-| TEACHER_EMAIL | 허용할 교사 ChatGPT 계정 이메일 |
-| TEACHER_PASSWORD | 관리자 비밀번호 |
-| SESSION_SECRET | 무작위로 생성한 32바이트 이상의 세션 서명 비밀키 |
+| TEACHER_PASSWORD | 관리자 초기 비밀번호 1111, 실제 운영 전 변경 |
+| SESSION_SECRET | 학생/교사 세션 서명 비밀키 |
+| FIREBASE_API_KEY | Firebase 웹 API 키. Email/Password 제공업체 활성화 필요 |
 
-DB 바인딩은 `DB`이며 `.openai/hosting.json`에서 선언합니다.
-Sites 워크플로로 소스를 동기화하고 빌드 결과를 배포합니다.
-학생용 사이트는 Sites 접근 설정을 `public`으로 구성합니다.
-GitHub 저장소는 소스 보관용이며, GitHub에 올리는 것만으로 사이트가 자동 재배포되지는 않습니다.
-학생 저장 기능이 있으므로 GitHub Pages 같은 정적 호스팅만으로는 전체 앱을 실행할 수 없습니다.
+DB 바인딩은 `DB`입니다. 마이그레이션은 `drizzle/`의 0000~0005 순서로 실행합니다. 이미 적용한 파일은 다시 실행하지 않습니다. 이번 변경은 0004(피드백·학습 진행·관리자 시도 제한)와 0005(개별 연습 답안 이력)입니다. 로컬 DB와 기존 Sites DB, 향후 별도 Cloudflare DB는 서로 다릅니다. 학생용 Cloudflare로 이전할 때 기존 학생/진단 데이터를 먼저 백업하고 이전해야 합니다.
+
+로컬 적용 예시:
+
+```sh
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0004_learning_journey.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0005_practice_attempt_history.sql
+```
+
+GitHub 소스 업로드가 자동 사이트 재배포를 뜻하지는 않습니다. Cloudflare 배포에는 본인 계정의 D1 데이터베이스, Worker 배포 설정 및 런타임 환경변수 연결이 필요합니다. GitHub Pages 같은 정적 호스팅만으로는 저장과 인증 API를 실행할 수 없습니다.
