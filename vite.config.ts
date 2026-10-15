@@ -73,7 +73,7 @@ export default defineConfig(async ({ command }) => {
           // preview binding above so existing preview records stay available.
           ...(command === "build"
             ? {
-                name: "mathematical-reasoning-assessment",
+                name: "math-literacy",
                 d1_databases: d1
                   ? [
                       {
