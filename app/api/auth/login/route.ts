@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     const firebase = await response.json() as { localId?: string };
     if (!response.ok || !firebase.localId) return jsonError("이메일 또는 비밀번호를 확인해 주세요.", 401);
     const student = await db().prepare("SELECT id, name, grade, classroom, created_at AS createdAt FROM students WHERE firebase_uid=?").bind(firebase.localId).first<Record<string, unknown>>();
-    if (!student) return jsonError("학생 프로필을 찾지 못했습니다. 회원가입을 다시 진행해 주세요.", 404);
+    if (!student) return jsonError("이메일 인증은 확인됐지만 현재 사이트에 학생 정보가 연결되지 않았습니다. 관리자에게 기존 학생 정보 복원을 요청해 주세요.", 409);
     const session = await createStudentSession(String(student.id));
     return privateJson({ student: { ...student, latestScore: null, assessmentCount: 0 } }, { headers: { "Set-Cookie": sessionCookie(session, 2 * 60 * 60, "student_session") } });
   } catch (error) { console.error("Could not sign in student", error); return jsonError("로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.", 503); }
