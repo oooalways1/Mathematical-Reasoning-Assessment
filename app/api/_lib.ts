@@ -69,7 +69,11 @@ export async function studentSessionId(request: Request) {
   if (!token) return null;
   const [id, expiresAt, signature, extra] = token.split(".");
   if (!id || !expiresAt || !signature || extra !== undefined || !/^\d+$/.test(expiresAt) || Number(expiresAt) <= Date.now()) return null;
-  return await verify(`student.${id}.${expiresAt}`, signature) ? id : null;
+  if (!await verify(`student.${id}.${expiresAt}`, signature)) return null;
+  const revocation = await db().prepare('SELECT attempts FROM admin_attempts WHERE bucket=? AND expires_at>?')
+    .bind(`student-revocation:${id}`, Date.now()).first<{ attempts: number }>();
+  const issuedAt = Number(expiresAt) - 2 * 60 * 60 * 1000;
+  return revocation && issuedAt <= revocation.attempts ? null : id;
 }
 
 export function sameOrigin(request: Request) {

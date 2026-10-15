@@ -9,6 +9,7 @@ import type { StudentProfile } from '@/lib/diagnosis-model';
 import AnswerKeyEditor from './answer-key-editor';
 import LearningJourney from './learning-journey';
 import FeedbackLibrary from './feedback-library';
+import StudentAccountEditor from './student-account-editor';
 
 type Student = { id: string; name: string; grade: number; classroom: string; createdAt: string; latestScore?: number | null; assessmentCount?: number };
 type Result = { id: string; studentId: string; totalScore: number; maxScore: number; domains: Record<string, number>; completedAt: string };
@@ -123,7 +124,7 @@ export default function Home() {
       const payload = await response.json() as { student?: Student; error?: string };
       if (!response.ok || !payload.student) throw new Error(payload.error || "학생을 등록하지 못했습니다.");
       setStudents((current) => [payload.student!, ...current]);
-      setAdminNotice(`${payload.student.name} 학생 정보를 등록했습니다. 학생은 이메일로 회원가입할 수 있습니다.`);
+      setAdminNotice(`${payload.student.name} 학생 정보를 등록했습니다. 학생은 아이디로 회원가입할 수 있습니다.`);
       setNewStudent({ name: "", grade: "1", classroom: "" }); setShowAddStudent(false); void loadAdmin();
     } catch (e) { setAddError(e instanceof Error ? e.message : "학생 등록에 실패했습니다."); }
     finally { setAdding(false); }
@@ -188,7 +189,7 @@ export default function Home() {
     </Modal>}
 
     {showAddStudent && <Modal title="학생 정보 등록" onClose={() => setShowAddStudent(false)}>
-      <span className="modal-icon"><GraduationCap size={28}/></span><h2>학생 정보 등록</h2><p className="muted">교사가 관리할 학생 정보를 등록해요. 학생은 이메일로 회원가입할 수 있습니다.</p>
+      <span className="modal-icon"><GraduationCap size={28}/></span><h2>학생 정보 등록</h2><p className="muted">교사가 관리할 학생 정보를 등록해요. 학생은 아이디로 회원가입할 수 있습니다.</p>
       <form onSubmit={(event) => void addStudent(event)} className="form-stack">
         <label>학생 이름<input required maxLength={40} autoFocus value={newStudent.name} onChange={(event) => setNewStudent((student) => ({ ...student, name: event.target.value }))} placeholder="예: 김하늘"/></label>
         <div className="form-columns"><label>학년<select value={newStudent.grade} onChange={(event) => setNewStudent((student) => ({ ...student, grade: event.target.value }))}>{GRADES.map((grade) => <option key={grade} value={grade}>{grade}학년</option>)}</select></label><label>반<input maxLength={30} value={newStudent.classroom} onChange={(event) => setNewStudent((student) => ({ ...student, classroom: event.target.value }))} placeholder="예: 2반"/></label></div>
@@ -230,6 +231,7 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
   const [tab, setTab] = useState<"overview" | "students" | "records" | "keys" | "feedback">("overview");
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState<{ student: Student; resultId?: string } | null>(null);
+  const [accountStudent, setAccountStudent] = useState<Student | null>(null);
   const matched = students.filter((student) => `${student.name} ${student.classroom} ${student.grade}`.includes(query));
   const visibleResults = selectedId ? results.filter((result) => result.studentId === selectedId) : results;
     const hasLegacy = results.some((result) => hasLegacyDomains(result.domains));
@@ -264,9 +266,9 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
     </>}
 
     {!detail && tab === "students" && <section className="panel">
-      <div className="panel-toolbar"><div><h2>학생 목록</h2><p className="muted">학생 정보와 학년을 확인하세요. 학생은 이메일로 회원가입할 수 있습니다.</p></div><div className="toolbar-controls"><SearchInput value={query} onChange={setQuery}/><button className="button button-primary" onClick={onAdd}><Plus size={19}/> 학생 추가</button></div></div>
+      <div className="panel-toolbar"><div><h2>학생 목록</h2><p className="muted">학생 정보와 학년을 확인하세요. 학생은 아이디로 회원가입할 수 있습니다.</p></div><div className="toolbar-controls"><SearchInput value={query} onChange={setQuery}/><button className="button button-primary" onClick={onAdd}><Plus size={19}/> 학생 추가</button></div></div>
       <div className="table-scroll"><table className="data-table"><thead><tr><th>이름</th><th>학년·반</th><th>진단 횟수</th><th><span className="sr-only">진단</span></th></tr></thead><tbody>
-        {matched.map((student) => <tr key={student.id}><td><strong>{student.name}</strong></td><td>{student.grade}학년 {student.classroom}</td><td>{student.assessmentCount ?? 0}회</td><td><button className="button button-soft" onClick={() => setDetail({ student })}>학생 상세 <ArrowRight size={17}/></button></td></tr>)}
+        {matched.map((student) => <tr key={student.id}><td><strong>{student.name}</strong></td><td>{student.grade}학년 {student.classroom}</td><td>{student.assessmentCount ?? 0}회</td><td><div className="button-row"><button className="button button-soft" onClick={() => setDetail({ student })}>학생 상세 <ArrowRight size={17}/></button><button className="button button-outline" onClick={() => setAccountStudent(student)}>로그인 관리</button></div></td></tr>)}
       </tbody></table></div>
       {!matched.length && <div className="empty-state"><Users size={32}/><h3>{students.length ? "검색 결과가 없어요" : "첫 학생을 등록해 주세요"}</h3><p>{students.length ? "다른 이름으로 검색해 주세요." : "위의 학생 추가 버튼으로 시작할 수 있어요."}</p></div>}
     </section>}
@@ -284,6 +286,7 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
     </section>}
     {!detail && tab === 'keys' && <AnswerKeyEditor/>}
     {!detail && tab === 'feedback' && <FeedbackLibrary/>}
+    {accountStudent && <Modal title="학생 로그인 관리" onClose={() => setAccountStudent(null)}><StudentAccountEditor key={accountStudent.id} student={accountStudent}/></Modal>}
     <p className="admin-session-note"><ShieldCheck size={18}/> 공용 기기에서는 사용 후 로그아웃해 주세요.</p>
   </div>;
 }

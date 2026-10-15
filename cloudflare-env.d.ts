@@ -6,6 +6,6 @@ declare namespace Cloudflare {
     TEACHER_EMAIL?: string;
     SESSION_SECRET?: string;
     FIREBASE_API_KEY?: string;
+    FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   }
 }
-

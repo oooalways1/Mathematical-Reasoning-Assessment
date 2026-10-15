@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, BookOpenCheck, Calculator, ChartNoAxesCombined, Check, ChevronLeft, CircleHelp, ClipboardList, Eye, EyeOff, GraduationCap, LockKeyhole, Mail, Shapes, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, BookOpenCheck, Calculator, ChartNoAxesCombined, Check, ChevronLeft, CircleHelp, ClipboardList, Eye, EyeOff, GraduationCap, LockKeyhole, UserRound, Shapes, Sparkles, TrendingUp } from "lucide-react";
 import { domains, domainDescriptions } from "@/lib/assessment";
 import { GRADES, QUESTION_COUNT, type Grade } from "@/lib/diagnosis-blueprint";
 import type { StudentProfile } from '@/lib/diagnosis-model';
+import { normalizeUsername, USERNAME_PATTERN, USERNAME_GUIDE } from '@/lib/student-login';
 import Diagnosis from './diagnosis';
 import MyResults from './my-results';
 
@@ -14,7 +15,7 @@ const domainIcons = [Calculator, TrendingUp, Shapes, ChartNoAxesCombined];
 
 export default function StudentPortal({ page, initialGrade, onNavigate, onGradeChange, onAuthenticated, student, sessionLoading }: Navigation & { page: PortalPage; initialGrade: Grade; student: StudentProfile | null; sessionLoading: boolean }) {
   return <>
-    <div className="preview-banner"><span/>수리력 진단 <span className="preview-separator">·</span> 이메일 회원가입으로 시작해요.</div>
+    <div className="preview-banner"><span/>수리력 진단 <span className="preview-separator">·</span> 나만의 아이디로 시작해요.</div>
     {page === "home" && <Landing onNavigate={onNavigate}/>}
     {(page === "signup" || page === "login") && <AccountForm key={page} mode={page} onNavigate={onNavigate} onGradeChange={onGradeChange} onAuthenticated={onAuthenticated}/>}
     {page === "diagnosis" && <Diagnosis key={student?.id ?? initialGrade} student={student} sessionLoading={sessionLoading} initialGrade={initialGrade} onNavigate={onNavigate}/>}
@@ -52,7 +53,7 @@ function Landing({ onNavigate }: Navigation) {
       <div className="domain-grid">{domains.map((domain, index) => { const Icon = domainIcons[index]; return <article key={domain} className={`domain-card tone-${index}`}><span className="domain-icon"><Icon size={26}/></span><h3>{domain}</h3><p>{domainDescriptions[domain]}</p></article>; })}</div>
     </section>
 
-    <section className="how-to" aria-labelledby="how-title"><div><p className="eyebrow">이용 순서</p><h2 id="how-title">시작은 간단해요.</h2><p>차근차근, 나의 속도로 함께해요.</p></div><ol><li><span>01</span><div><h3>이메일로 회원가입</h3><p>이름과 학년을 입력하고 내 계정을 만들어요.</p></div></li><li><span>02</span><div><h3>우리 학년 진단하기</h3><p>검사지를 보며 총 {QUESTION_COUNT}문항의 답을 입력해요.</p></div></li><li><span>03</span><div><h3>나의 결과 살펴보기</h3><p>나의 강점을 찾고 다음 배움을 준비해요.</p></div></li></ol></section>
+    <section className="how-to" aria-labelledby="how-title"><div><p className="eyebrow">이용 순서</p><h2 id="how-title">시작은 간단해요.</h2><p>차근차근, 나의 속도로 함께해요.</p></div><ol><li><span>01</span><div><h3>아이디로 회원가입</h3><p>이름과 학년을 입력하고 내 아이디를 만들어요.</p></div></li><li><span>02</span><div><h3>우리 학년 진단하기</h3><p>검사지를 보며 총 {QUESTION_COUNT}문항의 답을 입력해요.</p></div></li><li><span>03</span><div><h3>나의 결과 살펴보기</h3><p>나의 강점을 찾고 다음 배움을 준비해요.</p></div></li></ol></section>
     <aside className="learning-note"><CircleHelp size={23}/><p>진단은 배움을 돕기 위한 첫걸음이에요.<br/>점수와 함께 풀이 과정을 살펴보며, 나에게 필요한 연습을 찾아보세요.</p></aside>
   </div>;
 }
@@ -70,15 +71,16 @@ function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated }: Navig
     const name = String(form.get("name") ?? "").trim();
     const grade = Number(form.get("grade"));
     const classroom = String(form.get("classroom") ?? "").trim();
-    const email = String(form.get("email") ?? "").trim();
+    const username = normalizeUsername(form.get("username"));
     const password = String(form.get("password") ?? "");
     const confirmation = String(form.get("passwordConfirm") ?? "");
     if (signup && (!name || ![1, 2, 3].includes(grade))) { setError("이름과 학년을 입력해 주세요."); setSubmitting(false); return; }
-    if (!email || !password) { setError("이메일과 비밀번호를 입력해 주세요."); setSubmitting(false); return; }
+    if (!username || !password) { setError("아이디와 비밀번호를 입력해 주세요."); setSubmitting(false); return; }
+    if (signup && !USERNAME_PATTERN.test(username)) { setError(`아이디는 ${USERNAME_GUIDE}로 입력해 주세요.`); setSubmitting(false); return; }
     if (signup && password.length < 6) { setError("비밀번호는 최소 6자리로 입력해 주세요."); setSubmitting(false); return; }
     if (signup && password !== confirmation) { setError("비밀번호가 서로 다릅니다."); setSubmitting(false); return; }
     try {
-      const response = await fetch(signup ? "/api/auth/signup" : "/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signup ? { name, grade, classroom, email, password } : { email, password }) });
+      const response = await fetch(signup ? "/api/auth/signup" : "/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signup ? { name, grade, classroom, username, password } : { username, password }) });
       const payload = await response.json() as { student?: StudentProfile; error?: string };
       if (!response.ok || !payload.student) throw new Error(payload.error || "계정 요청을 처리하지 못했습니다.");
       const studentGrade = Number(payload.student.grade);
@@ -90,14 +92,14 @@ function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated }: Navig
     finally { setSubmitting(false); }
   }
   return <section className="container account-layout">
-    <div className="account-story"><p className="eyebrow">수리력 한걸음 · 내 계정</p><h1>{signup ? <>나의 배움이<br/>시작되는 곳.</> : <>다시 만나서<br/>반가워요.</>}</h1><p>이메일 계정으로 진단에 참여하고,<br/>나의 성장 기록을 이어 갈 수 있어요.</p><div className="account-points"><span><Check size={19}/> 나의 학년에 맞는 진단</span><span><Check size={19}/> 나만의 결과와 학습 기록</span><span><Check size={19}/> 이메일로 간편하게 로그인</span></div><button className="text-button" onClick={() => onNavigate("home")}><ChevronLeft size={18}/> 홈으로 돌아가기</button></div>
+    <div className="account-story"><p className="eyebrow">수리력 한걸음 · 내 계정</p><h1>{signup ? <>나의 배움이<br/>시작되는 곳.</> : <>다시 만나서<br/>반가워요.</>}</h1><p>나만의 아이디로 진단에 참여하고,<br/>나의 성장 기록을 이어 갈 수 있어요.</p><div className="account-points"><span><Check size={19}/> 나의 학년에 맞는 진단</span><span><Check size={19}/> 나만의 결과와 학습 기록</span><span><Check size={19}/> 아이디로 간편하게 로그인</span></div><button className="text-button" onClick={() => onNavigate("home")}><ChevronLeft size={18}/> 홈으로 돌아가기</button></div>
     <div className="panel account-card">
       <nav className="account-tabs" aria-label="학생 계정 메뉴"><button aria-current={!signup ? "page" : undefined} className={!signup ? "active" : ""} onClick={() => onNavigate("login")}>로그인</button><button aria-current={signup ? "page" : undefined} className={signup ? "active" : ""} onClick={() => onNavigate("signup")}>회원가입</button></nav>
-      <h2>{signup ? "학생 회원가입" : "학생 로그인"}</h2><p className="muted">{signup ? "이메일로 나만의 배움 공간을 만들어요." : "가입한 이메일과 비밀번호로 시작해요."}</p>
-      <div id="account-readiness" className="readiness-note" role="status"><LockKeyhole size={19}/><p>{signup ? "새 이메일 계정을 만들어 시작해요." : "가입한 이메일 계정으로 로그인해요."}<br/><small>비밀번호는 안전한 인증 서비스로 보호합니다.</small></p></div>
+      <h2>{signup ? "학생 회원가입" : "학생 로그인"}</h2><p className="muted">{signup ? "기억하기 쉬운 나만의 아이디를 만들어요." : "가입한 아이디와 비밀번호로 시작해요."}</p>
+      <div id="account-readiness" className="readiness-note" role="status"><LockKeyhole size={19}/><p>{signup ? "아이디와 비밀번호를 기억해 주세요." : "내 아이디로 로그인해요."}<br/><small>비밀번호를 잊었다면 선생님께 문의해 주세요.</small></p></div>
       <form className="form-stack" onSubmit={handleSubmit} aria-describedby="account-readiness" autoComplete="off">
         {signup && <><label htmlFor="student-name">이름<input id="student-name" name="name" placeholder="이름을 입력해 주세요" maxLength={40}/></label><div className="form-columns"><label htmlFor="student-grade">학년<select id="student-grade" name="grade" defaultValue=""><option value="" disabled>학년 선택</option>{GRADES.map(grade => <option key={grade} value={grade}>{grade}학년</option>)}</select></label><label htmlFor="student-classroom">반 <small className="optional-label">선택</small><input id="student-classroom" name="classroom" placeholder="예: 2반" maxLength={30}/></label></div></>}
-        <label htmlFor="student-email">이메일<div className="input-with-icon"><Mail size={19}/><input id="student-email" name="email" type="email" placeholder="name@example.com" maxLength={254}/></div></label>
+        <label htmlFor="student-username">아이디<div className="input-with-icon"><UserRound size={19}/><input id="student-username" name="username" type="text" placeholder={signup ? "예: math1234" : "아이디를 입력해 주세요"} maxLength={signup ? 20 : 254} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" aria-describedby="username-help" required/></div><small id="username-help">{signup ? `${USERNAME_GUIDE} · 대소문자는 구분하지 않아요.` : "이전에 이메일로 가입했다면 이메일을 입력해 주세요."}</small></label>
         <label htmlFor="student-password">비밀번호 {signup && <small>최소 6자리</small>}<div className="password-input"><input id="student-password" name="password" type={showPassword ? "text" : "password"} placeholder={signup ? "최소 6자리로 입력해 주세요" : "비밀번호를 입력해 주세요"} autoComplete={signup ? "new-password" : "current-password"} minLength={signup ? 6 : undefined} maxLength={128}/><button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}>{showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}</button></div></label>
         {signup && <label htmlFor="password-confirm">비밀번호 확인<input id="password-confirm" name="passwordConfirm" type="password" placeholder="비밀번호를 한 번 더 입력해 주세요" autoComplete="new-password" maxLength={128}/></label>}
         {error && <p className="alert" role="alert">{error}</p>}{notice && <p className="success-message" role="status">{notice}</p>}
