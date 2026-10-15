@@ -1,11 +1,12 @@
 import { questionBlueprints, POINTS_PER_QUESTION, type Grade } from './diagnosis-blueprint';
+import type { CoachingMessage, SkillGuide } from './feedback-types';
 
 export type StudentProfile = { id: string; name: string; grade: Grade; classroom: string };
 export type Practice = { prompt: string; accepted: string[]; hint: string; explanation: string; version: number };
-export type ItemFeedback = { id: string; number: number; domain: string; topic: string; given: string; expected: string[]; correct: boolean; blank: boolean; guidance: string; practice: Practice };
+export type ItemFeedback = { id: string; number: number; domain: string; topic: string; given: string; expected: string[]; correct: boolean; blank: boolean; guidance: string; practice: Practice; skill?: SkillGuide; coaching?: CoachingMessage; practiceCoaching?: CoachingMessage };
 export type LearningProgress = { questionId: string; attempts: number; latestAnswer: string; correct: boolean; completedAt: string | null; teacherNote: string; updatedAt: string };
-export type PracticeAttempt = { id: string; questionId: string; answer: string; correct: boolean; attemptedAt: string };
-export type DiagnosisResult = { id: string; studentId: string; grade: Grade; totalScore: number; maxScore: number; domains: Record<string, number>; completedAt: string; submissionMethod: 'manual' | 'scan'; keyVersion: string; feedback?: ItemFeedback[] | null; progress?: LearningProgress[]; attempts?: PracticeAttempt[]; legacy?: boolean; answers?: Record<string, unknown> };
+export type PracticeAttempt = { id: string; questionId: string; answer: string; correct: boolean; attemptedAt: string; coaching?: CoachingMessage | null };
+export type DiagnosisResult = { id: string; studentId: string; grade: Grade; totalScore: number; maxScore: number; domains: Record<string, number>; completedAt: string; submissionMethod: 'manual' | 'scan'; keyVersion: string; feedback?: ItemFeedback[] | null; progress?: LearningProgress[]; attempts?: PracticeAttempt[]; legacy?: boolean; answers?: Record<string, unknown>; coachingSummary?: CoachingMessage };
 export type AnswerKey = Record<string, string[]>;
 export function normalizeAnswer(value: string) {
   return value.normalize('NFKC').trim().toLowerCase().replace(/\s/g, '');

@@ -43,6 +43,13 @@
       "when": 1792023679951,
       "tag": "0005_practice_attempt_history",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792027660845,
+      "tag": "0006_adaptive_coaching",
+      "breakpoints": true
     }
   ]
 }

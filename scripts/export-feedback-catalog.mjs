@@ -1,0 +1,10 @@
+import { build } from 'esbuild';
+import { mkdirSync, writeFileSync } from 'node:fs';
+const built=await build({stdin:{contents:"export * from './lib/feedback-cases'; export * from './lib/skill-guides'; export * from './lib/diagnosis-blueprint'; export * from './lib/adaptive-feedback'; export * from './lib/feedback-applicability';",resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm'});
+const library=await import('data:text/javascript;base64,'+Buffer.from(built.outputFiles[0].text).toString('base64'));
+const uniqueItems=new Map(Object.values(library.questionBlueprints).flat().map(item=>[`${item.sourceGrade}-${item.sourceNumber}`,item]));
+const skills=[...uniqueItems.values()].map(library.getSkillGuide);
+const entries=[...uniqueItems.values()].flatMap(item=>{const skill=library.getSkillGuide(item); return library.applicableFeedbackCases(item).flatMap(situation=>situation.variants.map((text,index)=>({skillId:skill.id,skill:skill.label,caseId:situation.id,phase:situation.phase,condition:situation.condition,variant:index+1,title:situation.title,message:`${text} ${skill.focus}`,nextStep:library.renderCoaching(situation.id,skill,'export').nextStep})));});
+mkdirSync('outputs',{recursive:true});
+writeFileSync('outputs/feedback-catalog.json',JSON.stringify({version:library.FEEDBACK_VERSION,description:'사전 작성된 학습 내용 × 상황 × 문구 조합. 실제 학생 기록이나 외부 AI API는 포함하지 않습니다.',skillCount:skills.length,situationCount:library.feedbackCases.length,combinationCount:entries.length,skills,cases:library.feedbackCases,entries},null,2)+'\n');
+console.log(`Feedback catalog exported: ${skills.length} skill cards, ${library.feedbackCases.length} situations, ${entries.length} prewritten combinations.`);

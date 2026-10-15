@@ -1,6 +1,6 @@
 import { db, jsonError, privateJson, sameOrigin, studentSessionId } from '../_lib';
 import { isGrade, questionBlueprints } from '@/lib/diagnosis-blueprint';
-import { scoreDiagnosis, type AnswerKey } from '@/lib/diagnosis-model';
+import { scoreDiagnosis, type AnswerKey, type ItemFeedback } from '@/lib/diagnosis-model';
 import { createFeedback } from '@/lib/learning-support';
 import { readLearning } from '../learning/data';
 
@@ -34,8 +34,9 @@ export async function POST(request: Request) {
     const answers = body.answers as Record<string, string>;
     const key = JSON.parse(row.answers) as AnswerKey;
     const score = scoreDiagnosis(grade, answers, key);
-    const feedback = createFeedback(grade, answers, key);
     const resultId = crypto.randomUUID(), completedAt = new Date().toISOString();
+    const previous = await database.prepare('SELECT feedback FROM assessments WHERE student_id=? AND grade=? AND key_version=? AND feedback IS NOT NULL ORDER BY completed_at DESC, id DESC LIMIT 1').bind(id, grade, row.version).first<{ feedback: string }>();
+    const feedback = createFeedback(grade, answers, key, { previous: previous ? JSON.parse(previous.feedback) as ItemFeedback[] : undefined, method: String(body.method), seed: resultId });
     await database.prepare('INSERT INTO assessments (id, student_id, total_score, max_score, domains, answers, completed_at, grade, submission_method, key_version, feedback) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(resultId, id, score.totalScore, score.maxScore, JSON.stringify(score.domains), JSON.stringify(answers), completedAt, grade, String(body.method), row.version, JSON.stringify(feedback)).run();
     return privateJson({ result: { id: resultId, studentId: id, grade, totalScore: score.totalScore, maxScore: score.maxScore, domains: score.domains, completedAt, submissionMethod: body.method, keyVersion: row.version }, correct: score.correct }, { status: 201 });
   } catch { return jsonError('채점 결과를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.', 503); }

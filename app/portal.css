@@ -432,3 +432,32 @@
  .report-item { break-inside:avoid; }
  .learning-report .result-areas { display:grid; grid-template-columns:repeat(2,1fr); }
 }
+
+.coaching-panel { border:1px solid #d7e7f8; border-radius:13px; background:#f2f7ff; padding:20px 22px; margin:18px 0; }
+.coaching-panel h4,.skill-steps h4 { font-size:18px; font-weight:750; color:#24476c; margin:0 0 10px; }
+.coaching-panel p { color:#45637f; line-height:1.85; margin:8px 0; }
+.coaching-start { background:#f1f7f4; border-color:#d3e8df; }
+.coaching-review { background:#fff8ed; border-color:#f0dfc1; }
+.coaching-extend { background:#f4f0fc; border-color:#e2d9f0; }
+.coaching-panel .coaching-next { border-top:1px solid #dce6f1; padding-top:12px; }
+.coaching-next b { display:inline-block; margin-right:10px; }
+.coaching-panel details { margin-top:12px; font-size:13px; color:#657b93; }
+.coaching-panel ul { padding-left:22px; line-height:1.9; margin-top:10px; }
+.skill-steps { background:#f7f9fc; border-radius:12px; padding:18px 20px; margin:18px 0; }
+.skill-steps .section-heading { margin:0; }
+.skill-steps ol,.library-skill ol { padding-left:25px; margin:14px 0; line-height:1.9; color:#455f7b; }
+.skill-steps details { margin:14px 0 0; }
+.skill-steps p { margin-top:12px; line-height:1.8; }
+.feedback-library { padding:30px; }
+.feedback-library-counts { display:grid; grid-template-columns:repeat(3,1fr); gap:15px; margin:25px 0; }
+.feedback-library-counts span { background:#f3f7fc; border-radius:12px; padding:18px; color:#6e839d; font-size:14px; }
+.feedback-library-counts strong { display:block; font-size:30px; color:#285da3; margin-bottom:7px; }
+.library-selectors { display:grid; grid-template-columns:110px 1.4fr 1fr; gap:15px; margin:25px 0; }
+.library-selectors label { color:#59718e; font-size:14px; }
+.library-selectors select { display:block; width:100%; padding:13px; margin-top:9px; border:1px solid #d4e0ee; border-radius:10px; background:white; color:#263f5c; }
+.library-condition { background:#f7f9fc; border-radius:12px; padding:20px; line-height:1.8; }
+.library-condition h3 { margin-bottom:12px; }
+.library-variants { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.library-skill { border-top:1px solid #e1eaf4; padding-top:24px; line-height:1.9; }
+.library-skill p { color:#516d8a; margin:12px 0; }
+@media(max-width:800px) { .feedback-library { padding:22px; } .library-selectors,.library-variants { grid-template-columns:1fr; } .feedback-library-counts { grid-template-columns:1fr; gap:9px; } .feedback-library-counts strong { display:inline-block; margin-right:14px; } }

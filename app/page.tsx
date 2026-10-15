@@ -8,6 +8,7 @@ import StudentPortal, { type PortalPage } from "./student-portal";
 import type { StudentProfile } from '@/lib/diagnosis-model';
 import AnswerKeyEditor from './answer-key-editor';
 import LearningJourney from './learning-journey';
+import FeedbackLibrary from './feedback-library';
 
 type Student = { id: string; name: string; grade: number; classroom: string; createdAt: string; latestScore?: number | null; assessmentCount?: number };
 type Result = { id: string; studentId: string; totalScore: number; maxScore: number; domains: Record<string, number>; completedAt: string };
@@ -214,74 +215,75 @@ function Modal({ children, title, onClose }: { children: ReactNode; title: strin
 }
 
 function DomainBar({ domain, value, index }: { domain: string; value?: number; index: number }) {
-  return <div className={`domain-bar tone-${index}`}><div className="domain-bar-label"><span>{domain}</span><strong>{value === undefined ? "진단 전" : `${value}%`}</strong></div><div className="domain-track"><div style={{ width: `${value ?? 0}%` …11333 tokens truncated…v></div>
-        <div className="art-caption"><span className="caption-dot"/> 오늘의 작은 발견이 내일의 자신감으로</div>
-      </div>
-    </section>
-
-    <section className="portal-menu" aria-labelledby="menu-title">
-      <div className="section-heading"><div><p className="eyebrow">나의 수리력 한걸음</p><h2 id="menu-title">진단에서 다음 배움까지</h2></div><p className="section-note">진단 후 ‘나의 학습’에서 이어 가요.</p></div>
-      <div className="learning-feature-grid">{[['진단', '우리 학년 20문항의 답을 입력하고 결과를 저장해요.', ClipboardList], ['분석', '내 답과 정답을 비교하고, 다시 배울 내용을 알아봐요.', ChartNoAxesCombined], ['학습 지원', '오답과 연결된 연습 문제를 풀고 풀이를 확인해요.', BookOpenCheck], ['학습 관리', '연습 기록과 성장 추이를 살펴보고 리포트를 만들어요.', TrendingUp]].map(([title,description,Icon], index) => { const FeatureIcon = Icon as typeof ClipboardList; return <article className={`panel learning-feature tone-${index}`} key={String(title)}><span className="domain-icon"><FeatureIcon size={26}/></span><h3>{String(title)}</h3><p>{String(description)}</p></article>; })}</div>
-    </section>
-
-    <section id="guide" className="portal-guide" aria-labelledby="guide-title">
-      <div className="section-heading"><div><p className="eyebrow">진단 안내</p><h2 id="guide-title">어떤 배움을 살펴보나요?</h2></div></div>
-      <p className="guide-description">수리력을 이루는 네 가지 영역이에요. 학년에 따라 진단에서 다루는 내용은 달라요.</p>
-      <div className="domain-grid">{domains.map((domain, index) => { const Icon = domainIcons[index]; return <article key={domain} className={`domain-card tone-${index}`}><span className="domain-icon"><Icon size={26}/></span><h3>{domain}</h3><p>{domainDescriptions[domain]}</p></article>; })}</div>
-    </section>
-
-    <section className="how-to" aria-labelledby="how-title"><div><p className="eyebrow">이용 순서</p><h2 id="how-title">시작은 간단해요.</h2><p>차근차근, 나의 속도로 함께해요.</p></div><ol><li><span>01</span><div><h3>이메일로 회원가입</h3><p>이름과 학년을 입력하고 내 계정을 만들어요.</p></div></li><li><span>02</span><div><h3>우리 학년 진단하기</h3><p>검사지를 보며 총 {QUESTION_COUNT}문항의 답을 입력해요.</p></div></li><li><span>03</span><div><h3>나의 결과 살펴보기</h3><p>나의 강점을 찾고 다음 배움을 준비해요.</p></div></li></ol></section>
-    <aside className="learning-note"><CircleHelp size={23}/><p>진단은 배움을 돕기 위한 첫걸음이에요.<br/>점수와 함께 풀이 과정을 살펴보며, 나에게 필요한 연습을 찾아보세요.</p></aside>
-  </div>;
+  return <div className={`domain-bar tone-${index}`}><div className="domain-bar-label"><span>{domain}</span><strong>{value === undefined ? "진단 전" : `${value}%`}</strong></div><div className="domain-track"><div style={{ width: `${value ?? 0}%` }}/></div></div>;
 }
 
-function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated }: Navigation & { mode: "signup" | "login" }) {
-  const signup = mode === "signup";
-  const [showPassword, setShowPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (submitting) return;
-    setSubmitting(true); setError(""); setNotice("");
-    const form = new FormData(event.currentTarget);
-    const name = String(form.get("name") ?? "").trim();
-    const grade = Number(form.get("grade"));
-    const classroom = String(form.get("classroom") ?? "").trim();
-    const email = String(form.get("email") ?? "").trim();
-    const password = String(form.get("password") ?? "");
-    const confirmation = String(form.get("passwordConfirm") ?? "");
-    if (signup && (!name || ![1, 2, 3].includes(grade))) { setError("이름과 학년을 입력해 주세요."); setSubmitting(false); return; }
-    if (!email || !password) { setError("이메일과 비밀번호를 입력해 주세요."); setSubmitting(false); return; }
-    if (signup && password.length < 6) { setError("비밀번호는 최소 6자리로 입력해 주세요."); setSubmitting(false); return; }
-    if (signup && password !== confirmation) { setError("비밀번호가 서로 다릅니다."); setSubmitting(false); return; }
-    try {
-      const response = await fetch(signup ? "/api/auth/signup" : "/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signup ? { name, grade, classroom, email, password } : { email, password }) });
-      const payload = await response.json() as { student?: StudentProfile; error?: string };
-      if (!response.ok || !payload.student) throw new Error(payload.error || "계정 요청을 처리하지 못했습니다.");
-      const studentGrade = Number(payload.student.grade);
-      if ([1, 2, 3].includes(studentGrade)) onGradeChange?.(studentGrade as Grade);
-      onAuthenticated?.(payload.student);
-      setNotice(signup ? "회원가입이 완료됐어요. 진단을 시작해 주세요." : "로그인했어요. 진단을 시작해 주세요.");
-      window.setTimeout(() => onNavigate("diagnosis"), 700);
-    } catch (submitError) { setError(submitError instanceof Error ? submitError.message : "계정 요청을 처리하지 못했습니다."); }
-    finally { setSubmitting(false); }
-  }
-  return <section className="container account-layout">
-    <div className="account-story"><p className="eyebrow">수리력 한걸음 · 내 계정</p><h1>{signup ? <>나의 배움이<br/>시작되는 곳.</> : <>다시 만나서<br/>반가워요.</>}</h1><p>이메일 계정으로 진단에 참여하고,<br/>나의 성장 기록을 이어 갈 수 있어요.</p><div className="account-points"><span><Check size={19}/> 나의 학년에 맞는 진단</span><span><Check size={19}/> 나만의 결과와 학습 기록</span><span><Check size={19}/> 이메일로 간편하게 로그인</span></div><button className="text-button" onClick={() => onNavigate("home")}><ChevronLeft size={18}/> 홈으로 돌아가기</button></div>
-    <div className="panel account-card">
-      <nav className="account-tabs" aria-label="학생 계정 메뉴"><button aria-current={!signup ? "page" : undefined} className={!signup ? "active" : ""} onClick={() => onNavigate("login")}>로그인</button><button aria-current={signup ? "page" : undefined} className={signup ? "active" : ""} onClick={() => onNavigate("signup")}>회원가입</button></nav>
-      <h2>{signup ? "학생 회원가입" : "학생 로그인"}</h2><p className="muted">{signup ? "이메일로 나만의 배움 공간을 만들어요." : "가입한 이메일과 비밀번호로 시작해요."}</p>
-      <div id="account-readiness" className="readiness-note" role="status"><LockKeyhole size={19}/><p>{signup ? "새 이메일 계정을 만들어 시작해요." : "가입한 이메일 계정으로 로그인해요."}<br/><small>비밀번호는 안전한 인증 서비스로 보호합니다.</small></p></div>
-      <form className="form-stack" onSubmit={handleSubmit} aria-describedby="account-readiness" autoComplete="off">
-        {signup && <><label htmlFor="student-name">이름<input id="student-name" name="name" placeholder="이름을 입력해 주세요" maxLength={40}/></label><div className="form-columns"><label htmlFor="student-grade">학년<select id="student-grade" name="grade" defaultValue=""><option value="" disabled>학년 선택</option>{GRADES.map(grade => <option key={grade} value={grade}>{grade}학년</option>)}</select></label><label htmlFor="student-classroom">반 <small className="optional-label">선택</small><input id="student-classroom" name="classroom" placeholder="예: 2반" maxLength={30}/></label></div></>}
-        <label htmlFor="student-email">이메일<div className="input-with-icon"><Mail size={19}/><input id="student-email" name="email" type="email" placeholder="name@example.com" maxLength={254}/></div></label>
-        <label htmlFor="student-password">비밀번호 {signup && <small>최소 6자리</small>}<div className="password-input"><input id="student-password" name="password" type={showPassword ? "text" : "password"} placeholder={signup ? "최소 6자리로 입력해 주세요" : "비밀번호를 입력해 주세요"} autoComplete={signup ? "new-password" : "current-password"} minLength={signup ? 6 : undefined} maxLength={128}/><button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}>{showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}</button></div></label>
-        {signup && <label htmlFor="password-confirm">비밀번호 확인<input id="password-confirm" name="passwordConfirm" type="password" placeholder="비밀번호를 한 번 더 입력해 주세요" autoComplete="new-password" maxLength={128}/></label>}
-        {error && <p className="alert" role="alert">{error}</p>}{notice && <p className="success-message" role="status">{notice}</p>}
-        <button type="submit" className="button button-primary button-block" disabled={submitting}>{submitting ? (signup ? "가입 처리 중…" : "로그인 중…") : (signup ? "회원가입" : "로그인")} <ArrowRight size={18}/></button>
-      </form>
-      <p className="account-switch">{signup ? "이미 계정이 있나요?" : "아직 계정이 없나요?"} <button className="text-button" onClick={() => onNavigate(signup ? "login" : "signup")}>{signup ? "로그인" : "회원가입"}</button></p>
+function StatCard({ icon, label, value, note }: { icon: ReactNode; label: string; value: string; note: string }) {
+  return <div className="panel stat-card"><div className="stat-top"><span>{label}</span><span className="stat-icon">{icon}</span></div><strong>{value}</strong><p>{note}</p></div>;
+}
+
+function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout, onRefresh }: {
+  students: Student[]; results: Result[]; stats: typeof initialStats; error: string;
+  onAdd: () => void; onExport: () => void; onLogout: () => void; onRefresh: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<"overview" | "students" | "records" | "keys" | "feedback">("overview");
+  const [selectedId, setSelectedId] = useState("");
+  const [detail, setDetail] = useState<{ student: Student; resultId?: string } | null>(null);
+  const matched = students.filter((student) => `${student.name} ${student.classroom} ${student.grade}`.includes(query));
+  const visibleResults = selectedId ? results.filter((result) => result.studentId === selectedId) : results;
+    const hasLegacy = results.some((result) => hasLegacyDomains(result.domains));
+  const areaAverage = domains.map((domain) => {
+    const scores = results.map((result) => domainScore(result.domains, domain)).filter((value): value is number => value !== undefined);
+    return { domain, value: scores.length ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length) : undefined };
+  });
+
+  if (detail) return <div className="container admin-content"><div className="button-row"><button className="button button-outline student-back" onClick={() => setDetail(null)}>← 대시보드로 돌아가기</button><button className="button button-outline student-back" onClick={onLogout}><LogOut size={18}/> 관리 종료</button></div><LearningJourney key={`${detail.student.id}-${detail.resultId ?? ''}`} student={detail.student} teacher initialResultId={detail.resultId}/><p className="admin-session-note"><ShieldCheck size={18}/> 공용 기기에서는 사용 후 관리 종료를 눌러 주세요.</p></div>;
+
+  return <div className="container admin-content">
+    <div className="section-heading admin-heading">
+      <div><p className="eyebrow"><LayoutDashboard size={18}/> 교사를 위한 공간</p><h1>관리 대시보드</h1><p className="muted">학생별 답안·오답·진단 이력·연습 기록을 살펴보세요.</p></div>
+      <div className="button-row"><button className="button button-outline" onClick={onRefresh}>새로고침</button><button className="button button-outline" onClick={onLogout}><LogOut size={18}/> 로그아웃</button></div>
     </div>
-  </section>;
+    {error && <p role="alert" className="alert">{error}</p>}
+    <nav className="admin-tabs" aria-label="관리 메뉴">{([["overview", "한눈에 보기"], ["students", "학생 관리"], ["records", "진단 기록"], ["keys", "정답 설정"], ["feedback", "피드백 자료"]] as const).map(([id, label]) =>
+      <button key={id} aria-current={!detail && tab === id ? "page" : undefined} className={!detail && tab === id ? "active" : ""} onClick={() => { setTab(id); setDetail(null); }}>{label}</button>)}</nav>
+
+    {!detail && tab === "overview" && <>
+      <div className="stat-grid"><StatCard icon={<Users size={24}/>} label="등록 학생" value={`${stats.students}명`} note="전체 학급"/><StatCard icon={<ClipboardList size={24}/>} label="누적 진단" value={`${stats.assessments}회`} note="저장된 진단 기록"/><StatCard icon={<Activity size={24}/>} label="평균 점수" value={`${stats.average}점`} note="누적 진단 기준"/></div>
+      <div className="dashboard-grid">
+        <section className="panel dashboard-panel"><div className="panel-heading"><div><h2>영역별 학급 평균</h2><p>누적 진단 결과 기준</p></div><BarChart3 size={24}/></div><div className="domain-bars">{areaAverage.map(({ domain, value }, index) => <DomainBar key={domain} domain={domain} value={value} index={index}/>)}</div>{hasLegacy && <p className="form-note legacy-note">자료와 가능성은 새 영역으로 실시한 진단만 반영합니다. 이전 영역의 점수는 진단 기록에서 확인하세요.</p>}</section>
+        <section className="panel dashboard-panel"><div className="panel-heading"><div><h2>최근 진단 기록</h2><p>최근 결과부터 표시해요</p></div><button className="text-button" onClick={() => setTab("records")}>전체 보기 <ArrowRight size={17}/></button></div>
+          {results.length ? <div className="recent-list">{results.slice(0, 5).map((result) => {
+            const student = students.find((item) => item.id === result.studentId);
+            return <div key={result.id}><div><strong>{student?.name ?? "학생"}</strong><p>{student?.grade}학년 · {new Date(result.completedAt).toLocaleDateString("ko-KR")}</p></div><span className="badge">{result.totalScore}점</span></div>;
+          })}</div> : <div className="empty-state"><ClipboardList size={30}/><p>아직 진단 기록이 없어요.</p></div>}
+        </section>
+      </div>
+      <section className="admin-callout"><div><h2>학생의 다음 배움을 준비해요</h2><p>학생을 등록하고, 진단을 시작해 보세요.</p></div><button className="button button-primary" onClick={() => setTab("students")}>학생 관리 <ArrowRight size={19}/></button></section>
+    </>}
+
+    {!detail && tab === "students" && <section className="panel">
+      <div className="panel-toolbar"><div><h2>학생 목록</h2><p className="muted">학생 정보와 학년을 확인하세요. 학생은 이메일로 회원가입할 수 있습니다.</p></div><div className="toolbar-controls"><SearchInput value={query} onChange={setQuery}/><button className="button button-primary" onClick={onAdd}><Plus size={19}/> 학생 추가</button></div></div>
+      <div className="table-scroll"><table className="data-table"><thead><tr><th>이름</th><th>학년·반</th><th>진단 횟수</th><th><span className="sr-only">진단</span></th></tr></thead><tbody>
+        {matched.map((student) => <tr key={student.id}><td><strong>{student.name}</strong></td><td>{student.grade}학년 {student.classroom}</td><td>{student.assessmentCount ?? 0}회</td><td><button className="button button-soft" onClick={() => setDetail({ student })}>학생 상세 <ArrowRight size={17}/></button></td></tr>)}
+      </tbody></table></div>
+      {!matched.length && <div className="empty-state"><Users size={32}/><h3>{students.length ? "검색 결과가 없어요" : "첫 학생을 등록해 주세요"}</h3><p>{students.length ? "다른 이름으로 검색해 주세요." : "위의 학생 추가 버튼으로 시작할 수 있어요."}</p></div>}
+    </section>}
+
+    {!detail && tab === "records" && <section className="panel">
+      <div className="panel-toolbar"><div><h2>진단 기록</h2><p className="muted">학생별 결과를 조회하고 내려받아요.</p></div><div className="toolbar-controls"><select aria-label="학생 선택" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}><option value="">전체 학생</option>{students.map((student) => <option key={student.id} value={student.id}>{student.name} · {student.grade}학년 {student.classroom}</option>)}</select><button className="button button-outline" onClick={onExport}><Download size={19}/> CSV 다운로드</button></div></div>
+      <div className="table-scroll"><table className="data-table records-table"><thead><tr><th>학생</th><th>진단일</th><th>영역별 점수</th><th>총점</th></tr></thead><tbody>
+        {visibleResults.map((result) => {
+          const student = students.find((item) => item.id === result.studentId);
+          const legacy = hasLegacyDomains(result.domains);
+          return <tr key={result.id}><td><strong>{student?.name ?? "학생"}</strong><small>{student?.grade}학년 {student?.classroom}</small></td><td>{new Date(result.completedAt).toLocaleDateString("ko-KR")}<small>{new Date(result.completedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</small></td><td><div className="record-domains">{(legacy ? Object.entries(result.domains) : Object.entries(result.domains)).map(([domain, score]) => <span key={domain}>{domain}<b>{score}%</b></span>)}</div>{legacy && <small>이전 영역 기준 진단</small>}</td><td><strong className="score-text">{result.totalScore}/{result.maxScore}점</strong>{student && <button className="text-button" onClick={() => setDetail({ student, resultId: result.id })}>답안·분석 보기</button>}</td></tr>;
+        })}
+      </tbody></table></div>
+      {!visibleResults.length && <div className="empty-state"><ClipboardList size={32}/><p>조회할 진단 기록이 없어요.</p></div>}
+    </section>}
+    {!detail && tab === 'keys' && <AnswerKeyEditor/>}
+    {!detail && tab === 'feedback' && <FeedbackLibrary/>}
+    <p className="admin-session-note"><ShieldCheck size={18}/> 공용 기기에서는 사용 후 로그아웃해 주세요.</p>
+  </div>;
 }

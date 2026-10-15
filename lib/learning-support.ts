@@ -1,5 +1,7 @@
 import { questionBlueprints, type Grade, type QuestionBlueprint } from './diagnosis-blueprint';
 import { normalizeAnswer, scoreDiagnosis, type AnswerKey, type ItemFeedback, type Practice } from './diagnosis-model';
+import { getSkillGuide } from './skill-guides';
+import { diagnosticCoaching } from './adaptive-feedback';
 
 type Exercise = [string, string, string, string];
 // Original practice, separate from the supplied diagnostic test. Anchor items use their source grade.
@@ -73,14 +75,20 @@ export function practiceFor(item: QuestionBlueprint): Practice {
 export function practiceCorrect(practice: Practice, answer: string) {
   return !!normalizeAnswer(answer) && practice.accepted.some(value => normalizeAnswer(value) === normalizeAnswer(answer));
 }
-export function createFeedback(grade: Grade, answers: Record<string, string>, key: AnswerKey): ItemFeedback[] {
+export function createFeedback(grade: Grade, answers: Record<string, string>, key: AnswerKey, context?: { previous?: ItemFeedback[]; method?: string; seed?: string }): ItemFeedback[] {
   const { correct } = scoreDiagnosis(grade, answers, key);
-  return questionBlueprints[grade].map(item => ({
+  return questionBlueprints[grade].map(item => {
+    const skill = getSkillGuide(item);
+    const feedback: ItemFeedback = {
     id: item.id, number: item.number, topic: item.topic, domain: item.domain,
     given: answers[item.id] ?? '', expected: key[item.id], correct: correct[item.id], blank: !answers[item.id]?.trim(),
     guidance: correct[item.id] ? '이번 문항은 잘 해결했어요. 어떻게 풀었는지 말로 설명해 보세요.'
       : !answers[item.id]?.trim() ? '답이 비어 있어요. 문제에서 묻는 것을 찾아 다시 풀어 보세요.'
       : '등록된 정답과 답이 달라요. 검사지의 조건과 풀이를 다시 살펴보고 관련 연습을 해 보세요.',
-    practice: practiceFor(item),
-  }));
+    practice: practiceFor(item), skill,
+    };
+    feedback.coaching = diagnosticCoaching(feedback, skill, { previous: context?.previous?.find(previous => previous.id === item.id), method: context?.method, seed: `${context?.seed ?? 'diagnosis'}:${item.id}` });
+    feedback.guidance = feedback.coaching.message;
+    return feedback;
+  });
 }

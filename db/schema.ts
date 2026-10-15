@@ -57,4 +57,5 @@ export const learningAttempts = sqliteTable("learning_attempts", {
   answer: text("answer").notNull(),
   correct: integer("correct", { mode: "boolean" }).notNull(),
   attemptedAt: text("attempted_at").notNull(),
+  coaching: text("coaching"),
 }, table => [index("learning_attempts_assessment_idx").on(table.assessmentId, table.attemptedAt)]);
