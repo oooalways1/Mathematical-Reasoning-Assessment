@@ -69,6 +69,22 @@ export default defineConfig(async ({ command }) => {
         inspectorPort: false,
         config: {
           ...localBindingConfig,
+          // Own-account deployments use the real D1 database. Keep the local
+          // preview binding above so existing preview records stay available.
+          ...(command === "build"
+            ? {
+                name: "mathematical-reasoning-assessment",
+                d1_databases: d1
+                  ? [
+                      {
+                        binding: d1,
+                        database_name: "numeracy-db",
+                        database_id: "0204db2f-5e94-49fa-b102-c2dadc48ace1",
+                      },
+                    ]
+                  : [],
+              }
+            : {}),
           ...(command === "serve"
             ? {
                 services: [
