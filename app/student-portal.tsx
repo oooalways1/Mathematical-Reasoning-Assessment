@@ -6,6 +6,7 @@ import { domains, domainDescriptions } from "@/lib/assessment";
 import { GRADES, QUESTION_COUNT, type Grade } from "@/lib/diagnosis-blueprint";
 import type { StudentProfile } from '@/lib/diagnosis-model';
 import { normalizeUsername, USERNAME_PATTERN, USERNAME_GUIDE } from '@/lib/student-login';
+import SchoolSelect from './school-select';
 import Diagnosis from './diagnosis';
 import MyResults from './my-results';
 
@@ -53,13 +54,14 @@ function Landing({ onNavigate }: Navigation) {
       <div className="domain-grid">{domains.map((domain, index) => { const Icon = domainIcons[index]; return <article key={domain} className={`domain-card tone-${index}`}><span className="domain-icon"><Icon size={26}/></span><h3>{domain}</h3><p>{domainDescriptions[domain]}</p></article>; })}</div>
     </section>
 
-    <section className="how-to" aria-labelledby="how-title"><div><p className="eyebrow">이용 순서</p><h2 id="how-title">시작은 간단해요.</h2><p>차근차근, 나의 속도로 함께해요.</p></div><ol><li><span>01</span><div><h3>아이디로 회원가입</h3><p>이름과 학년을 입력하고 내 아이디를 만들어요.</p></div></li><li><span>02</span><div><h3>우리 학년 진단하기</h3><p>검사지를 보며 총 {QUESTION_COUNT}문항의 답을 입력해요.</p></div></li><li><span>03</span><div><h3>나의 결과 살펴보기</h3><p>나의 강점을 찾고 다음 배움을 준비해요.</p></div></li></ol></section>
+    <section className="how-to" aria-labelledby="how-title"><div><p className="eyebrow">이용 순서</p><h2 id="how-title">시작은 간단해요.</h2><p>차근차근, 나의 속도로 함께해요.</p></div><ol><li><span>01</span><div><h3>아이디로 회원가입</h3><p>학교를 선택하고 이름과 학년, 내 아이디를 입력해요.</p></div></li><li><span>02</span><div><h3>우리 학년 진단하기</h3><p>검사지를 보며 총 {QUESTION_COUNT}문항의 답을 입력해요.</p></div></li><li><span>03</span><div><h3>나의 결과 살펴보기</h3><p>나의 강점을 찾고 다음 배움을 준비해요.</p></div></li></ol></section>
     <aside className="learning-note"><CircleHelp size={23}/><p>진단은 배움을 돕기 위한 첫걸음이에요.<br/>점수와 함께 풀이 과정을 살펴보며, 나에게 필요한 연습을 찾아보세요.</p></aside>
   </div>;
 }
 
 function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated }: Navigation & { mode: "signup" | "login" }) {
   const signup = mode === "signup";
+  const [schoolId,setSchoolId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -74,13 +76,14 @@ function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated }: Navig
     const username = normalizeUsername(form.get("username"));
     const password = String(form.get("password") ?? "");
     const confirmation = String(form.get("passwordConfirm") ?? "");
+    if (signup && !schoolId) { setError("목록에서 초등학교를 선택해 주세요."); setSubmitting(false); return; }
     if (signup && (!name || ![1, 2, 3].includes(grade))) { setError("이름과 학년을 입력해 주세요."); setSubmitting(false); return; }
     if (!username || !password) { setError("아이디와 비밀번호를 입력해 주세요."); setSubmitting(false); return; }
     if (signup && !USERNAME_PATTERN.test(username)) { setError(`아이디는 ${USERNAME_GUIDE}로 입력해 주세요.`); setSubmitting(false); return; }
     if (signup && password.length < 6) { setError("비밀번호는 최소 6자리로 입력해 주세요."); setSubmitting(false); return; }
     if (signup && password !== confirmation) { setError("비밀번호가 서로 다릅니다."); setSubmitting(false); return; }
     try {
-      const response = await fetch(signup ? "/api/auth/signup" : "/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signup ? { name, grade, classroom, username, password } : { username, password }) });
+      const response = await fetch(signup ? "/api/auth/signup" : "/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(signup ? { name, grade, classroom, username, password, schoolId } : { username, password }) });
       const payload = await response.json() as { student?: StudentProfile; error?: string };
       if (!response.ok || !payload.student) throw new Error(payload.error || "계정 요청을 처리하지 못했습니다.");
       const studentGrade = Number(payload.student.grade);
@@ -98,7 +101,7 @@ function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated }: Navig
       <h2>{signup ? "학생 회원가입" : "학생 로그인"}</h2><p className="muted">{signup ? "기억하기 쉬운 나만의 아이디를 만들어요." : "가입한 아이디와 비밀번호로 시작해요."}</p>
       <div id="account-readiness" className="readiness-note" role="status"><LockKeyhole size={19}/><p>{signup ? "아이디와 비밀번호를 기억해 주세요." : "내 아이디로 로그인해요."}<br/><small>비밀번호를 잊었다면 선생님께 문의해 주세요.</small></p></div>
       <form className="form-stack" onSubmit={handleSubmit} aria-describedby="account-readiness" autoComplete="off">
-        {signup && <><label htmlFor="student-name">이름<input id="student-name" name="name" placeholder="이름을 입력해 주세요" maxLength={40}/></label><div className="form-columns"><label htmlFor="student-grade">학년<select id="student-grade" name="grade" defaultValue=""><option value="" disabled>학년 선택</option>{GRADES.map(grade => <option key={grade} value={grade}>{grade}학년</option>)}</select></label><label htmlFor="student-classroom">반 <small className="optional-label">선택</small><input id="student-classroom" name="classroom" placeholder="예: 2반" maxLength={30}/></label></div></>}
+        {signup && <><SchoolSelect value={schoolId} onChange={setSchoolId}/><label htmlFor="student-name">이름<input id="student-name" name="name" placeholder="이름을 입력해 주세요" maxLength={40}/></label><div className="form-columns"><label htmlFor="student-grade">학년<select id="student-grade" name="grade" defaultValue=""><option value="" disabled>학년 선택</option>{GRADES.map(grade => <option key={grade} value={grade}>{grade}학년</option>)}</select></label><label htmlFor="student-classroom">반 <small className="optional-label">선택</small><input id="student-classroom" name="classroom" placeholder="예: 2반" maxLength={30}/></label></div></>}
         <label htmlFor="student-username">아이디<div className="input-with-icon"><UserRound size={19}/><input id="student-username" name="username" type="text" placeholder={signup ? "예: math1234" : "아이디를 입력해 주세요"} maxLength={signup ? 20 : 254} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" aria-describedby="username-help" required/></div><small id="username-help">{signup ? `${USERNAME_GUIDE} · 대소문자는 구분하지 않아요.` : "이전에 이메일로 가입했다면 이메일을 입력해 주세요."}</small></label>
         <label htmlFor="student-password">비밀번호 {signup && <small>최소 6자리</small>}<div className="password-input"><input id="student-password" name="password" type={showPassword ? "text" : "password"} placeholder={signup ? "최소 6자리로 입력해 주세요" : "비밀번호를 입력해 주세요"} autoComplete={signup ? "new-password" : "current-password"} minLength={signup ? 6 : undefined} maxLength={128}/><button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}>{showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}</button></div></label>
         {signup && <label htmlFor="password-confirm">비밀번호 확인<input id="password-confirm" name="passwordConfirm" type="password" placeholder="비밀번호를 한 번 더 입력해 주세요" autoComplete="new-password" maxLength={128}/></label>}

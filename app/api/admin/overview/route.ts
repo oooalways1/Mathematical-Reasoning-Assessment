@@ -1,4 +1,5 @@
 import { db, isTeacher, jsonError, privateJson } from "../../_lib";
+import { withSchools } from '../../_schools';
 
 export async function GET(request: Request) {
   if (!await isTeacher(request)) return jsonError("교사 인증이 필요합니다.", 401);
@@ -14,7 +15,8 @@ export async function GET(request: Request) {
     const assessments = assessmentRows.results.map((row) => ({ ...row, domains: typeof row.domains === "string" ? JSON.parse(row.domains) as Record<string, number> : {} }));
     const scores = assessmentRows.results.map((row) => Number(row.totalScore));
     const growth = scores.length > 1 ? scores[0] - scores[scores.length - 1] : 0;
-    return privateJson({ students: studentRows.results, assessments, stats: { students: studentRows.results.length, assessments: statsRow?.assessmentCount ?? 0, average: statsRow?.average ?? 0, growth } });
+    const students = await withSchools(studentRows.results.map(row => ({...row,id:String(row.id)})));
+    return privateJson({ students, assessments, stats: { students: studentRows.results.length, assessments: statsRow?.assessmentCount ?? 0, average: statsRow?.average ?? 0, growth } });
   } catch (error) {
     console.error("Could not read admin overview", error);
     return jsonError("관리 데이터를 불러오지 못했습니다.", 503);

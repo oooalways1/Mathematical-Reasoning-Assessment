@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const students = sqliteTable("students", {
   id: text("id").primaryKey(),
@@ -59,3 +59,17 @@ export const learningAttempts = sqliteTable("learning_attempts", {
   attemptedAt: text("attempted_at").notNull(),
   coaching: text("coaching"),
 }, table => [index("learning_attempts_assessment_idx").on(table.assessmentId, table.attemptedAt)]);
+
+export const schools = sqliteTable("schools", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  region: text("region").notNull().default(""),
+  active: integer("active", {mode:"boolean"}).notNull().default(true),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, table => [uniqueIndex("schools_name_region_idx").on(table.name,table.region),check("schools_active_check",sql`${table.active} IN (0,1)`)]);
+
+export const studentSchools = sqliteTable("student_schools", {
+  studentId: text("student_id").primaryKey().references(()=>students.id,{onDelete:"cascade"}),
+  schoolId: text("school_id").notNull().references(()=>schools.id),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, table => [index("student_schools_school_idx").on(table.schoolId)]);

@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { createStudentSession, db, jsonError, privateJson, sameOrigin, sessionCookie } from "../../_lib";
 import { loginEmail } from "@/lib/student-login";
 import { allowAccountAction } from '../../_auth-limits';
+import { withSchools } from '../../_schools';
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return jsonError("잘못된 요청입니다.", 403);
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     const student = await db().prepare("SELECT id, name, grade, classroom, created_at AS createdAt FROM students WHERE firebase_uid=?").bind(firebase.localId).first<Record<string, unknown>>();
     if (!student) return jsonError("계정 인증은 확인됐지만 현재 사이트에 학생 정보가 연결되지 않았습니다. 선생님께 기존 학생 정보 복원을 요청해 주세요.", 409);
     const session = await createStudentSession(String(student.id));
-    return privateJson({ student: { ...student, latestScore: null, assessmentCount: 0 } }, { headers: { "Set-Cookie": sessionCookie(session, 2 * 60 * 60, "student_session") } });
+    const [profile] = await withSchools([{...student,id:String(student.id)}]);
+    return privateJson({ student: { ...profile, latestScore: null, assessmentCount: 0 } }, { headers: { "Set-Cookie": sessionCookie(session, 2 * 60 * 60, "student_session") } });
   } catch (error) { console.error("Could not sign in student", error); return jsonError("로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.", 503); }
 }

@@ -1,7 +1,7 @@
 import { questionBlueprints, POINTS_PER_QUESTION, type Grade } from './diagnosis-blueprint';
 import type { CoachingMessage, SkillGuide } from './feedback-types';
 
-export type StudentProfile = { id: string; name: string; grade: Grade; classroom: string };
+export type StudentProfile = { id: string; name: string; grade: Grade; classroom: string; schoolId?: string | null; schoolName?: string | null; schoolRegion?: string | null };
 export type Practice = { prompt: string; accepted: string[]; hint: string; explanation: string; version: number };
 export type ItemFeedback = { id: string; number: number; domain: string; topic: string; given: string; expected: string[]; correct: boolean; blank: boolean; guidance: string; practice: Practice; skill?: SkillGuide; coaching?: CoachingMessage; practiceCoaching?: CoachingMessage };
 export type LearningProgress = { questionId: string; attempts: number; latestAnswer: string; correct: boolean; completedAt: string | null; teacherNote: string; updatedAt: string };

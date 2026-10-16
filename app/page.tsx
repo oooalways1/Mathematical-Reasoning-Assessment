@@ -10,8 +10,10 @@ import AnswerKeyEditor from './answer-key-editor';
 import LearningJourney from './learning-journey';
 import FeedbackLibrary from './feedback-library';
 import StudentAccountEditor from './student-account-editor';
+import SchoolSelect from './school-select';
+import SchoolManager, { StudentSchoolEditor } from './school-manager';
 
-type Student = { id: string; name: string; grade: number; classroom: string; createdAt: string; latestScore?: number | null; assessmentCount?: number };
+type Student = { id: string; name: string; grade: number; classroom: string; schoolId?: string | null; schoolName?: string | null; schoolRegion?: string | null; createdAt: string; latestScore?: number | null; assessmentCount?: number };
 type Result = { id: string; studentId: string; totalScore: number; maxScore: number; domains: Record<string, number>; completedAt: string };
 const initialStats = { students: 0, assessments: 0, average: 0, growth: 0 };
 
@@ -43,7 +45,7 @@ export default function Home() {
   const [pin, setPin] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
-  const [newStudent, setNewStudent] = useState({ name: "", grade: "1", classroom: "" });
+  const [newStudent, setNewStudent] = useState({ name: "", grade: "1", classroom: "", schoolId: "" });
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
@@ -125,7 +127,7 @@ export default function Home() {
       if (!response.ok || !payload.student) throw new Error(payload.error || "학생을 등록하지 못했습니다.");
       setStudents((current) => [payload.student!, ...current]);
       setAdminNotice(`${payload.student.name} 학생 정보를 등록했습니다. 학생은 아이디로 회원가입할 수 있습니다.`);
-      setNewStudent({ name: "", grade: "1", classroom: "" }); setShowAddStudent(false); void loadAdmin();
+      setNewStudent({ name: "", grade: "1", classroom: "", schoolId: "" }); setShowAddStudent(false); void loadAdmin();
     } catch (e) { setAddError(e instanceof Error ? e.message : "학생 등록에 실패했습니다."); }
     finally { setAdding(false); }
   }
@@ -133,11 +135,11 @@ export default function Home() {
   function exportCsv() {
     const includeLegacy = results.some((result) => hasLegacyDomains(result.domains));
     const rows = [
-      ["이름", "학년", "반", "진단일", "점수", ...domains, ...(includeLegacy ? ["이전 영역: 자료와 문제해결"] : [])],
+      ["이름", "학교", "지역", "학년", "반", "진단일", "점수", ...domains, ...(includeLegacy ? ["이전 영역: 자료와 문제해결"] : [])],
       ...students.map((student) => {
         const assessment = results.find((item) => item.studentId === student.id);
         return [
-          student.name, `${student.grade}학년`, student.classroom,
+          student.name, student.schoolName ?? "학교 미지정", student.schoolRegion ?? "", `${student.grade}학년`, student.classroom,
           assessment ? new Date(assessment.completedAt).toLocaleDateString("ko-KR") : "진단 전",
           assessment ? `${assessment.totalScore}/${assessment.maxScore}` : "",
           ...domains.map((domain) => assessment ? domainScore(assessment.domains, domain) ?? "" : ""),
@@ -166,7 +168,7 @@ export default function Home() {
     <header className="site-header"><div className="container header-inner">
       <button onClick={() => navigate("home")} className="brand" aria-label="수리력 한걸음 홈"><span className="brand-icon"><BookOpenCheck size={25}/></span><span>수리력 한걸음</span></button>
       <nav className="portal-nav" aria-label="주 메뉴">{([["home", "홈"], ["results", "나의 학습"]] as const).map(([id, label]) => <button key={id} aria-current={!showAdmin && page === id ? "page" : undefined} onClick={() => navigate(id)}>{label}</button>)}</nav>
-      <div className="header-account">{studentProfile ? <><span className="signed-student">{studentProfile.name} · {studentProfile.grade}학년</span><button className="header-login" onClick={() => void studentLogout()}>로그아웃</button></> : <><button className="header-login" aria-current={!showAdmin && page === "login" ? "page" : undefined} onClick={() => navigate("login")}>로그인</button><button className="button button-primary" aria-current={!showAdmin && page === "signup" ? "page" : undefined} onClick={() => navigate("signup")}>회원가입</button></>}</div>
+      <div className="header-account">{studentProfile ? <><span className="signed-student">{studentProfile.schoolName ?? "학교 미지정"} · {studentProfile.name} · {studentProfile.grade}학년</span><button className="header-login" onClick={() => void studentLogout()}>로그아웃</button></> : <><button className="header-login" aria-current={!showAdmin && page === "login" ? "page" : undefined} onClick={() => navigate("login")}>로그인</button><button className="button button-primary" aria-current={!showAdmin && page === "signup" ? "page" : undefined} onClick={() => navigate("signup")}>회원가입</button></>}</div>
     </div></header>
 
     {!showAdmin && <StudentPortal page={page} initialGrade={initialGrade} onNavigate={navigate} onGradeChange={setInitialGrade} onAuthenticated={authenticated} student={studentProfile} sessionLoading={sessionLoading}/>}
@@ -191,6 +193,7 @@ export default function Home() {
     {showAddStudent && <Modal title="학생 정보 등록" onClose={() => setShowAddStudent(false)}>
       <span className="modal-icon"><GraduationCap size={28}/></span><h2>학생 정보 등록</h2><p className="muted">교사가 관리할 학생 정보를 등록해요. 학생은 아이디로 회원가입할 수 있습니다.</p>
       <form onSubmit={(event) => void addStudent(event)} className="form-stack">
+        <SchoolSelect value={newStudent.schoolId} onChange={schoolId => setNewStudent(student=>({...student,schoolId}))}/>
         <label>학생 이름<input required maxLength={40} autoFocus value={newStudent.name} onChange={(event) => setNewStudent((student) => ({ ...student, name: event.target.value }))} placeholder="예: 김하늘"/></label>
         <div className="form-columns"><label>학년<select value={newStudent.grade} onChange={(event) => setNewStudent((student) => ({ ...student, grade: event.target.value }))}>{GRADES.map((grade) => <option key={grade} value={grade}>{grade}학년</option>)}</select></label><label>반<input maxLength={30} value={newStudent.classroom} onChange={(event) => setNewStudent((student) => ({ ...student, classroom: event.target.value }))} placeholder="예: 2반"/></label></div>
         {addError && <p role="alert" className="alert">{addError}</p>}
@@ -228,11 +231,14 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
   onAdd: () => void; onExport: () => void; onLogout: () => void; onRefresh: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<"overview" | "students" | "records" | "keys" | "feedback">("overview");
+  const [tab, setTab] = useState<"overview" | "students" | "records" | "keys" | "feedback" | "schools">("overview");
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState<{ student: Student; resultId?: string } | null>(null);
   const [accountStudent, setAccountStudent] = useState<Student | null>(null);
-  const matched = students.filter((student) => `${student.name} ${student.classroom} ${student.grade}`.includes(query));
+  const [schoolStudent,setSchoolStudent] = useState<Student | null>(null);
+  const [schoolFilter,setSchoolFilter] = useState("");
+  const schoolOptions = Array.from(new Map(students.filter(s=>s.schoolId).map(s=>[s.schoolId!, {id:s.schoolId!,label:s.schoolName + (s.schoolRegion ? ' ('+s.schoolRegion+')' : '')}])).values()).sort((a,b)=>a.label.localeCompare(b.label,'ko'));
+  const matched = students.filter(student => (!schoolFilter || (schoolFilter === "unassigned" ? !student.schoolId : student.schoolId === schoolFilter)) && `${student.name} ${student.schoolName ?? ''} ${student.schoolRegion ?? ''} ${student.classroom} ${student.grade}`.includes(query.trim()));
   const visibleResults = selectedId ? results.filter((result) => result.studentId === selectedId) : results;
     const hasLegacy = results.some((result) => hasLegacyDomains(result.domains));
   const areaAverage = domains.map((domain) => {
@@ -248,7 +254,7 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
       <div className="button-row"><button className="button button-outline" onClick={onRefresh}>새로고침</button><button className="button button-outline" onClick={onLogout}><LogOut size={18}/> 로그아웃</button></div>
     </div>
     {error && <p role="alert" className="alert">{error}</p>}
-    <nav className="admin-tabs" aria-label="관리 메뉴">{([["overview", "한눈에 보기"], ["students", "학생 관리"], ["records", "진단 기록"], ["keys", "정답 설정"], ["feedback", "피드백 자료"]] as const).map(([id, label]) =>
+    <nav className="admin-tabs" aria-label="관리 메뉴">{([["overview", "한눈에 보기"], ["students", "학생 관리"], ["schools", "학교 관리"], ["records", "진단 기록"], ["keys", "정답 설정"], ["feedback", "피드백 자료"]] as const).map(([id, label]) =>
       <button key={id} aria-current={!detail && tab === id ? "page" : undefined} className={!detail && tab === id ? "active" : ""} onClick={() => { setTab(id); setDetail(null); }}>{label}</button>)}</nav>
 
     {!detail && tab === "overview" && <>
@@ -266,24 +272,26 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
     </>}
 
     {!detail && tab === "students" && <section className="panel">
-      <div className="panel-toolbar"><div><h2>학생 목록</h2><p className="muted">학생 정보와 학년을 확인하세요. 학생은 아이디로 회원가입할 수 있습니다.</p></div><div className="toolbar-controls"><SearchInput value={query} onChange={setQuery}/><button className="button button-primary" onClick={onAdd}><Plus size={19}/> 학생 추가</button></div></div>
-      <div className="table-scroll"><table className="data-table"><thead><tr><th>이름</th><th>학년·반</th><th>진단 횟수</th><th><span className="sr-only">진단</span></th></tr></thead><tbody>
-        {matched.map((student) => <tr key={student.id}><td><strong>{student.name}</strong></td><td>{student.grade}학년 {student.classroom}</td><td>{student.assessmentCount ?? 0}회</td><td><div className="button-row"><button className="button button-soft" onClick={() => setDetail({ student })}>학생 상세 <ArrowRight size={17}/></button><button className="button button-outline" onClick={() => setAccountStudent(student)}>로그인 관리</button></div></td></tr>)}
+      <div className="panel-toolbar"><div><h2>학생 목록</h2><p className="muted">학교별 학생 정보와 학년을 확인하고, 기존 학생의 학교를 배정하세요.</p></div><div className="toolbar-controls"><select aria-label="학교별 학생 조회" value={schoolFilter} onChange={event=>setSchoolFilter(event.target.value)}><option value="">전체 학교</option><option value="unassigned">학교 미지정</option>{schoolOptions.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select><SearchInput value={query} onChange={setQuery}/><button className="button button-primary" onClick={onAdd}><Plus size={19}/> 학생 추가</button></div></div>
+      <div className="table-scroll"><table className="data-table"><thead><tr><th>이름</th><th>초등학교</th><th>학년·반</th><th>진단 횟수</th><th><span className="sr-only">진단</span></th></tr></thead><tbody>
+        {matched.map((student) => <tr key={student.id}><td><strong>{student.name}</strong></td><td>{student.schoolName ?? "학교 미지정"}<small>{student.schoolRegion}</small></td><td>{student.grade}학년 {student.classroom}</td><td>{student.assessmentCount ?? 0}회</td><td><div className="button-row"><button className="button button-soft" onClick={() => setDetail({ student })}>학생 상세 <ArrowRight size={17}/></button><button className="button button-outline" onClick={() => setSchoolStudent(student)}>학교 배정</button><button className="button button-outline" onClick={() => setAccountStudent(student)}>로그인 관리</button></div></td></tr>)}
       </tbody></table></div>
       {!matched.length && <div className="empty-state"><Users size={32}/><h3>{students.length ? "검색 결과가 없어요" : "첫 학생을 등록해 주세요"}</h3><p>{students.length ? "다른 이름으로 검색해 주세요." : "위의 학생 추가 버튼으로 시작할 수 있어요."}</p></div>}
     </section>}
 
     {!detail && tab === "records" && <section className="panel">
-      <div className="panel-toolbar"><div><h2>진단 기록</h2><p className="muted">학생별 결과를 조회하고 내려받아요.</p></div><div className="toolbar-controls"><select aria-label="학생 선택" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}><option value="">전체 학생</option>{students.map((student) => <option key={student.id} value={student.id}>{student.name} · {student.grade}학년 {student.classroom}</option>)}</select><button className="button button-outline" onClick={onExport}><Download size={19}/> CSV 다운로드</button></div></div>
+      <div className="panel-toolbar"><div><h2>진단 기록</h2><p className="muted">학생별 결과를 조회하고 내려받아요.</p></div><div className="toolbar-controls"><select aria-label="학생 선택" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}><option value="">전체 학생</option>{students.map((student) => <option key={student.id} value={student.id}>{student.schoolName ?? "학교 미지정"} · {student.name} · {student.grade}학년 {student.classroom}</option>)}</select><button className="button button-outline" onClick={onExport}><Download size={19}/> CSV 다운로드</button></div></div>
       <div className="table-scroll"><table className="data-table records-table"><thead><tr><th>학생</th><th>진단일</th><th>영역별 점수</th><th>총점</th></tr></thead><tbody>
         {visibleResults.map((result) => {
           const student = students.find((item) => item.id === result.studentId);
           const legacy = hasLegacyDomains(result.domains);
-          return <tr key={result.id}><td><strong>{student?.name ?? "학생"}</strong><small>{student?.grade}학년 {student?.classroom}</small></td><td>{new Date(result.completedAt).toLocaleDateString("ko-KR")}<small>{new Date(result.completedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</small></td><td><div className="record-domains">{(legacy ? Object.entries(result.domains) : Object.entries(result.domains)).map(([domain, score]) => <span key={domain}>{domain}<b>{score}%</b></span>)}</div>{legacy && <small>이전 영역 기준 진단</small>}</td><td><strong className="score-text">{result.totalScore}/{result.maxScore}점</strong>{student && <button className="text-button" onClick={() => setDetail({ student, resultId: result.id })}>답안·분석 보기</button>}</td></tr>;
+          return <tr key={result.id}><td><strong>{student?.name ?? "학생"}</strong><small>{student?.schoolName ?? "학교 미지정"} · {student?.schoolRegion} · {student?.grade}학년 {student?.classroom}</small></td><td>{new Date(result.completedAt).toLocaleDateString("ko-KR")}<small>{new Date(result.completedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</small></td><td><div className="record-domains">{(legacy ? Object.entries(result.domains) : Object.entries(result.domains)).map(([domain, score]) => <span key={domain}>{domain}<b>{score}%</b></span>)}</div>{legacy && <small>이전 영역 기준 진단</small>}</td><td><strong className="score-text">{result.totalScore}/{result.maxScore}점</strong>{student && <button className="text-button" onClick={() => setDetail({ student, resultId: result.id })}>답안·분석 보기</button>}</td></tr>;
         })}
       </tbody></table></div>
       {!visibleResults.length && <div className="empty-state"><ClipboardList size={32}/><p>조회할 진단 기록이 없어요.</p></div>}
     </section>}
+    {!detail && tab === 'schools' && <SchoolManager onChanged={onRefresh}/>}
+    {schoolStudent && <Modal title="학생 학교 배정" onClose={()=>setSchoolStudent(null)}><StudentSchoolEditor student={schoolStudent} onSaved={()=>{setSchoolStudent(null);onRefresh();}}/></Modal>}
     {!detail && tab === 'keys' && <AnswerKeyEditor/>}
     {!detail && tab === 'feedback' && <FeedbackLibrary/>}
     {accountStudent && <Modal title="학생 로그인 관리" onClose={() => setAccountStudent(null)}><StudentAccountEditor key={accountStudent.id} student={accountStudent}/></Modal>}

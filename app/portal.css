@@ -1,5 +1,5 @@
 .app-shell { background: #fbfcfe; }
-.signed-student { font-size: 14px; color: #3c526e; font-weight: 600; }
+.signed-student { max-width: 240px; overflow-wrap: anywhere; font-size: 14px; color: #3c526e; font-weight: 600; }
 .diagnosis-status { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; color: #52657f; margin: 25px 0; }
 .submission-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
 .method-card { text-align: left; padding: 30px; border: 2px solid #e8edf5; color: #243855; transition: border-color .15s; }

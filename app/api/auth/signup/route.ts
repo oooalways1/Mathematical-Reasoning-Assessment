@@ -2,8 +2,9 @@ import { env } from "cloudflare:workers";
 import { createStudentSession, db, jsonError, privateJson, sameOrigin, sessionCookie } from "../../_lib";
 import { normalizeUsername, usernameEmail, USERNAME_PATTERN, USERNAME_GUIDE } from "@/lib/student-login";
 import { allowAccountAction } from '../../_auth-limits';
+import { activeSchool, schoolAssignment } from '../../_schools';
 
-type Body = { name?: unknown; grade?: unknown; classroom?: unknown; username?: unknown; password?: unknown };
+type Body = { name?: unknown; grade?: unknown; classroom?: unknown; username?: unknown; password?: unknown; schoolId?: unknown };
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return jsonError("잘못된 요청입니다.", 403);
@@ -26,6 +27,8 @@ export async function POST(request: Request) {
   try {
     if (!await allowAccountAction(request, 'student-signup', 600)) return jsonError('회원가입 요청이 많습니다. 15분 후 다시 시도해 주세요.', 429);
     const database = db();
+    const school = await activeSchool(body.schoolId);
+    if (!school) return jsonError('목록에서 가입 가능한 학교를 선택해 주세요.');
     await database.prepare("SELECT firebase_uid FROM students LIMIT 1").first();
     const id = crypto.randomUUID();
     const session = await createStudentSession(id);
@@ -39,9 +42,12 @@ export async function POST(request: Request) {
       return jsonError("회원가입을 완료하지 못했습니다. 입력 정보를 확인해 주세요.");
     }
     createdToken = firebase.idToken;
-    await database.prepare("INSERT INTO students (id, name, grade, classroom, firebase_uid) VALUES (?, ?, ?, ?, ?)").bind(id, name, grade, classroom, firebase.localId).run();
+    await database.batch([
+      database.prepare("INSERT INTO students (id, name, grade, classroom, firebase_uid) VALUES (?, ?, ?, ?, ?)").bind(id, name, grade, classroom, firebase.localId),
+      schoolAssignment(id,school.id),
+    ]);
     profileSaved = true;
-    return privateJson({ student: { id, name, grade, classroom, createdAt: new Date().toISOString(), latestScore: null, assessmentCount: 0 } }, { status: 201, headers: { "Set-Cookie": sessionCookie(session, 2 * 60 * 60, "student_session") } });
+    return privateJson({ student: { id, name, grade, classroom, schoolId:school.id, schoolName:school.name, schoolRegion:school.region, createdAt: new Date().toISOString(), latestScore: null, assessmentCount: 0 } }, { status: 201, headers: { "Set-Cookie": sessionCookie(session, 2 * 60 * 60, "student_session") } });
   } catch {
     if (createdToken && !profileSaved) {
       try {

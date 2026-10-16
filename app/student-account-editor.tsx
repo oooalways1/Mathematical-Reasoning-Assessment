@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { USERNAME_GUIDE } from '@/lib/student-login';
 
-export default function StudentAccountEditor({ student }: { student: { id: string; name: string; grade: number; classroom: string } }) {
+export default function StudentAccountEditor({ student }: { student: { id: string; name: string; grade: number; classroom: string; schoolName?: string | null; schoolRegion?: string | null } }) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'unconfigured' | 'unregistered' | 'error'>('loading');
   const [loginId, setLoginId] = useState('');
   const [busy, setBusy] = useState(false);
@@ -45,7 +45,7 @@ export default function StudentAccountEditor({ student }: { student: { id: strin
 
   return <>
     <h2>학생 로그인 관리</h2>
-    <p className="muted">{student.name} · {student.grade}학년 {student.classroom}</p>
+    <p className="muted">{student.schoolName ?? '학교 미지정'} {student.schoolRegion} · {student.name} · {student.grade}학년 {student.classroom}</p>
     {status === 'loading' && <p role="status">계정을 확인하고 있어요.</p>}
     {status === 'unconfigured' && <p className="alert" role="status">비밀번호 초기화를 사용하려면 Cloudflare 시크릿에 FIREBASE_SERVICE_ACCOUNT_JSON을 등록해 주세요. 등록 후 이 창을 다시 열어 주세요.</p>}
     {status === 'unregistered' && <p className="alert">이 학생은 아직 회원가입된 계정과 연결되지 않았습니다.</p>}
