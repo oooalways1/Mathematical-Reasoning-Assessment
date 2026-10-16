@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Calculator, ChartNoAxesCombined, Check, ChevronLeft, CircleHelp, ClipboardList, Eye, EyeOff, GraduationCap, LockKeyhole, UserRound, Shapes, TrendingUp } from "lucide-react";
 import { domains, domainDescriptions } from "@/lib/assessment";
-import { GRADES, QUESTION_COUNT, type Grade } from "@/lib/diagnosis-blueprint";
+import { GRADES, type Grade } from "@/lib/diagnosis-blueprint";
 import type { StudentProfile } from '@/lib/diagnosis-model';
 import { normalizeUsername, USERNAME_PATTERN, USERNAME_GUIDE } from '@/lib/student-login';
 import SchoolSelect from './school-select';
@@ -32,7 +32,7 @@ function Landing({ onNavigate, student, sessionLoading }: Navigation & { student
         <h1 id="home-title">{student ? <>{student.name}님,<br/>오늘도 <em>한 걸음!</em></> : <>나의 수학 실력,<br/><em>어디까지 자랐을까?</em></>}</h1>
         <p className="home-description">답안을 입력하면 결과를 바로 확인하고,<br/>나에게 필요한 연습을 이어 갈 수 있어요.</p>
         {student ? <p className="home-profile">{student.schoolName ?? '학교 미지정'} · {student.grade}학년 {student.classroom}</p> : <p className="home-signup">처음 왔나요? <button className="text-button" onClick={()=>onNavigate('signup')}>회원가입하기 <ArrowRight size={16}/></button></p>}
-        <div className="hero-facts"><span><ClipboardList size={16}/> 학년별 20문항</span><span><Check size={16}/> 직접 입력 또는 파일 업로드</span></div>
+        <div className="hero-facts"><span><ClipboardList size={16}/> 학년별 평가</span><span><Check size={16}/> 직접 입력 또는 파일 업로드</span></div>
       </div>
       <div className="home-actions" aria-label="바로 시작하기">
         <button className="home-action home-action-primary" disabled={sessionLoading} onClick={()=>onNavigate(student ? 'diagnosis' : 'login')}>
@@ -49,7 +49,7 @@ function Landing({ onNavigate, student, sessionLoading }: Navigation & { student
     </section>
     <section className="home-flow" aria-labelledby="home-flow-title">
       <h2 id="home-flow-title">이렇게 이용해요</h2>
-      <ol><li><span>1</span><div><strong>학교 선택 · 회원가입</strong><p>내 학교와 학년을 등록해요.</p></div></li><li><span>2</span><div><strong>진단 답안 제출</strong><p>검사지의 20문항 답을 입력해요.</p></div></li><li><span>3</span><div><strong>결과 확인 · 맞춤 복습</strong><p>부족한 내용을 알고 연습해요.</p></div></li></ol>
+      <ol><li><span>1</span><div><strong>학교 선택 · 회원가입</strong><p>내 학교와 학년을 등록해요.</p></div></li><li><span>2</span><div><strong>진단 답안 제출</strong><p>선택한 검사지의 답을 입력해요.</p></div></li><li><span>3</span><div><strong>결과 확인 · 맞춤 복습</strong><p>부족한 내용을 알고 연습해요.</p></div></li></ol>
     </section>
     <details className="home-guide" id="guide">
       <summary><span><CircleHelp size={19}/> 어떤 내용을 진단하나요?</span><span className="home-guide-toggle" aria-hidden="true">+</span></summary>

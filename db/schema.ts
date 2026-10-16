@@ -73,3 +73,10 @@ export const studentSchools = sqliteTable("student_schools", {
   schoolId: text("school_id").notNull().references(()=>schools.id),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, table => [index("student_schools_school_idx").on(table.schoolId)]);
+
+export const evaluationForms = sqliteTable('evaluation_forms',{
+  id:text('id').primaryKey(),title:text('title').notNull(),code:text('code').notNull(),grade:integer('grade').notNull(),status:text('status').notNull(),version:text('version').notNull(),definition:text('definition').notNull(),updatedAt:text('updated_at').notNull(),
+},table=>[uniqueIndex('evaluation_grade_code_idx').on(table.grade,table.code),check('evaluation_forms_status_check',sql`${table.status} IN ('draft','active','archived')`)]);
+export const evaluationRevisions = sqliteTable('evaluation_revisions',{
+  version:text('version').primaryKey(),formId:text('form_id').notNull().references(()=>evaluationForms.id),title:text('title').notNull(),code:text('code').notNull(),grade:integer('grade').notNull(),definition:text('definition').notNull(),createdAt:text('created_at').notNull(),
+},table=>[index('evaluation_revision_form_idx').on(table.formId)]);

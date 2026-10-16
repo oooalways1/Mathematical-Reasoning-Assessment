@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     if (!row || (!teacher && row.studentId !== id)) return jsonError('학습 기록을 찾을 수 없습니다.', 404);
     const item = (row.feedback ? JSON.parse(row.feedback) as ItemFeedback[] : []).find(item => item.id === body.questionId);
     if (!item) return jsonError('이전 진단은 문항별 학습 정보가 없습니다. 새 진단을 진행해 주세요.', 409);
+    if (!teacher && item.practice.enabled === false) return jsonError('선생님이 관련 복습 문제를 등록하면 연습할 수 있어요.',409);
     const now = new Date().toISOString();
     if (teacher) {
       await database.prepare(`INSERT INTO learning_progress (id, assessment_id, question_id, teacher_note, updated_at) VALUES (?, ?, ?, ?, ?)

@@ -1,16 +1,17 @@
-import { choiceAnswer } from './diagnosis-model';
 import { questionBlueprints, type Grade } from './diagnosis-blueprint';
+import {choiceValue} from './evaluations';
+type ScanItems={id:string;number:number;type:'choice'|'short';choiceCount?:number}[];
 
-export function parseNumberedAnswers(text: string, grade: Grade) {
+export function parseNumberedAnswers(text: string, grade: Grade, customItems?:ScanItems) {
   const answers: Record<string, string> = {}, conflicts = new Set<string>();
   for (const line of text.split(/\r?\n/)) {
     const match = line.normalize('NFKC').match(/^\s*(?:문항\s*)?(\d{1,2})\s*(?:번\s*)?[:.)-]\s*(?:답\s*[:：]\s*)?(.+?)\s*$/);
     if (!match) continue;
-    const item = questionBlueprints[grade].find(item => item.number === Number(match[1]));
+    const item = (customItems??questionBlueprints[grade]).find(item => item.number === Number(match[1]));
     if (!item) continue;
     const raw = match[2].trim();
     if (!raw || /^[_.\-\s]+$/.test(raw) || raw.length > 100) continue;
-    const answer = item.type === 'choice' ? choiceAnswer(raw) : raw;
+    const answer = item.type === 'choice' ? choiceValue(raw,'choiceCount' in item ? item.choiceCount??4 : 4) : raw;
     if (!answer || conflicts.has(item.id)) continue;
     if (answers[item.id] && answers[item.id] !== answer) { conflicts.add(item.id); delete answers[item.id]; }
     else answers[item.id] = answer;
@@ -19,7 +20,7 @@ export function parseNumberedAnswers(text: string, grade: Grade) {
 }
 
 export type ScanResult = { answers: Record<string, string>; conflicts: string[]; text: string; previews: string[]; pages: number };
-export async function readAnswerFiles(files: File[], grade: Grade, onProgress: (message: string) => void, signal: AbortSignal): Promise<ScanResult> {
+export async function readAnswerFiles(files: File[], grade: Grade, onProgress: (message: string) => void, signal: AbortSignal, customItems?:ScanItems): Promise<ScanResult> {
   if (!files.length || files.length > 8 || files.reduce((size, file) => size + file.size, 0) > 20 * 1024 * 1024) throw new Error('총 20MB 이하, 최대 8개 파일을 선택해 주세요.');
   let worker: import('tesseract.js').Worker | undefined;
   const pages: string[] = [], previews: string[] = [];
@@ -72,7 +73,7 @@ export async function readAnswerFiles(files: File[], grade: Grade, onProgress: (
             canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
             await page.render({ canvas, viewport }).promise;
             previews.push(canvas.toDataURL('image/jpeg', .55));
-            if (Object.keys(parseNumberedAnswers(text, grade).answers).length < 20) text += '\n' + await recognize(canvas);
+            if (Object.keys(parseNumberedAnswers(text, grade, customItems).answers).length < (customItems?.length??20)) text += '\n' + await recognize(canvas);
             pages.push(text); canvas.width = canvas.height = 0; page.cleanup();
           }
         } finally { await task.destroy(); }
@@ -89,6 +90,6 @@ export async function readAnswerFiles(files: File[], grade: Grade, onProgress: (
       }
     }
     check(); const text = pages.join('\n');
-    return { ...parseNumberedAnswers(text, grade), text, previews, pages: pageCount };
+    return { ...parseNumberedAnswers(text, grade, customItems), text, previews, pages: pageCount };
   } finally { signal.removeEventListener('abort', abort); await worker?.terminate(); }
 }

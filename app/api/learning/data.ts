@@ -1,17 +1,19 @@
 import { db } from '../_lib';
+import {ensureEvaluations} from '../_evaluations';
 import type { DiagnosisResult, ItemFeedback, LearningProgress, PracticeAttempt } from '@/lib/diagnosis-model';
 import type { CoachingMessage } from '@/lib/feedback-types';
 import { diagnosticCoaching, practiceCoaching, skillForFeedback, summarizeLearning } from '@/lib/adaptive-feedback';
 import type { Grade } from '@/lib/diagnosis-blueprint';
-type AssessmentRow = { id:string; studentId:string; grade:Grade; legacy:number; totalScore:number; maxScore:number; domains:string; answers:string; feedback:string|null; completedAt:string; submissionMethod:DiagnosisResult['submissionMethod']|null; keyVersion:string|null };
+type AssessmentRow = { evaluationId:string|null; evaluationTitle:string|null; evaluationCode:string|null; id:string; studentId:string; grade:Grade; legacy:number; totalScore:number; maxScore:number; domains:string; answers:string; feedback:string|null; completedAt:string; submissionMethod:DiagnosisResult['submissionMethod']|null; keyVersion:string|null };
 
 export async function readLearning(studentId: string, teacher: boolean) {
+  await ensureEvaluations();
   const database = db();
   const [records, progress, attempts] = await Promise.all([
     database.prepare(`SELECT a.id, a.student_id AS studentId, COALESCE(a.grade,s.grade) AS grade, a.grade IS NULL AS legacy,
       a.total_score AS totalScore, a.max_score AS maxScore, a.domains, a.answers, a.feedback,
-      a.completed_at AS completedAt, a.submission_method AS submissionMethod, a.key_version AS keyVersion
-      FROM assessments a JOIN students s ON s.id=a.student_id WHERE a.student_id=? ORDER BY a.completed_at DESC, a.id DESC`).bind(studentId).all<AssessmentRow>(),
+      a.completed_at AS completedAt, a.submission_method AS submissionMethod, a.key_version AS keyVersion, e.form_id AS evaluationId,e.title AS evaluationTitle,e.code AS evaluationCode
+      FROM assessments a LEFT JOIN evaluation_revisions e ON e.version=a.key_version JOIN students s ON s.id=a.student_id WHERE a.student_id=? ORDER BY a.completed_at DESC, a.id DESC`).bind(studentId).all<AssessmentRow>(),
     database.prepare(`SELECT p.assessment_id AS assessmentId, p.question_id AS questionId, p.attempts, p.latest_answer AS latestAnswer,
       p.correct, p.completed_at AS completedAt, p.teacher_note AS teacherNote, p.updated_at AS updatedAt
       FROM learning_progress p JOIN assessments a ON a.id=p.assessment_id WHERE a.student_id=?`).bind(studentId).all<LearningProgress & { assessmentId: string }>(),

@@ -17,6 +17,7 @@ export function renderCoaching(caseId: string, skill: SkillGuide, seed: string, 
     evidence, level: entry.level, version: FEEDBACK_VERSION };
 }
 export function skillForFeedback(item: ItemFeedback): SkillGuide | undefined {
+  if (item.custom) return undefined;
   if (item.skill) return item.skill;
   const blueprint = Object.values(questionBlueprints).flat().find(candidate => candidate.id === item.id);
   return blueprint ? getSkillGuide(blueprint) : undefined;

@@ -57,6 +57,7 @@
       "when": 1792108800000,
       "tag": "0007_school_directory",
       "breakpoints": true
-    }
+    },
+    { "idx": 8, "version": "6", "when": 1792126800000, "tag": "0008_evaluation_versions", "breakpoints": true }
   ]
 }
