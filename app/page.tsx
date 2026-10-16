@@ -160,7 +160,79 @@ export default function Home() {
   return <main className="app-shell">
     <header className="site-header"><div className="container header-inner">
       <button onClick={() => navigate("home")} className="brand" aria-label="수리력 한걸음 홈"><span className="brand-icon"><BookOpenCheck size={25}/></span><span>수리력 한걸음</span></button>
-      <nav classN…1958 tokens truncated…r=>r.evaluationId).map(r=>[r.evaluationId!,{id:r.evaluationId!,name:(r.evaluationTitle??'평가')+' · '+r.evaluationCode}])).values());
+      <nav className="portal-nav" aria-label="주 메뉴">{([["home", "홈"], ["results", "나의 학습"]] as const).map(([id, label]) => <button key={id} aria-current={!showAdmin && page === id ? "page" : undefined} onClick={() => navigate(id)}>{label}</button>)}</nav>
+      <div className="header-account">{studentProfile ? <><span className="signed-student">{studentProfile.schoolName ?? "학교 미지정"} · {studentProfile.name} · {studentProfile.grade}학년</span><button className="header-login" onClick={() => void studentLogout()}>로그아웃</button></> : <><button className="header-login" aria-current={!showAdmin && page === "login" ? "page" : undefined} onClick={() => navigate("login")}>로그인</button><button className="button button-primary" aria-current={!showAdmin && page === "signup" ? "page" : undefined} onClick={() => navigate("signup")}>회원가입</button></>}</div>
+    </div></header>
+
+    {!showAdmin && <StudentPortal page={page} initialGrade={initialGrade} onNavigate={navigate} onGradeChange={setInitialGrade} onAuthenticated={authenticated} student={studentProfile} sessionLoading={sessionLoading}/>}
+    {showAdmin && admin && <>{adminNotice && <p className="container admin-notice" role="status">{adminNotice}</p>}<AdminPanel students={students} results={results} stats={stats} error={error}
+      onAdd={() => { setAddError(""); setShowAddStudent(true); }} onExport={exportCsv} onLogout={() => void logout()}
+      onRefresh={() => void loadAdmin()}/></>}
+
+    <footer className="site-footer"><div className="container">
+      <nav className="footer-nav" aria-label="교사 관리"><button className={`admin-tab ${showAdmin ? "active" : ""}`} onClick={openAdmin}><Settings2 size={19}/> 관리페이지</button></nav>
+    </div></footer>
+
+    {showLogin && <Modal title="교사 관리페이지" onClose={() => { setShowLogin(false); setPin(""); }}>
+      <span className="modal-icon"><LockKeyhole size={27}/></span><h2>교사 관리페이지</h2>
+      <p className="muted">관리자 비밀번호를 입력하면 대시보드로 들어갈 수 있어요.</p><form onSubmit={(event) => void login(event)} className="form-stack">
+        <label htmlFor="teacher-pin">비밀번호<input id="teacher-pin" type="password" inputMode="numeric" required autoComplete="current-password" autoFocus value={pin} onChange={(event) => setPin(event.target.value)} placeholder="비밀번호 입력"/></label>
+        <button className="button button-primary button-block" disabled={loggingIn}>{loggingIn ? "확인 중…" : "관리페이지 들어가기"} <ArrowRight size={19}/></button>
+      </form>
+      {loginError && <p role="alert" className="alert">{loginError}</p>}
+    </Modal>}
+
+    {showAddStudent && <Modal title="학생 정보 등록" onClose={() => setShowAddStudent(false)}>
+      <span className="modal-icon"><GraduationCap size={28}/></span><h2>학생 정보 등록</h2><p className="muted">교사가 관리할 학생 정보를 등록해요. 학생은 아이디로 회원가입할 수 있습니다.</p>
+      <form onSubmit={(event) => void addStudent(event)} className="form-stack">
+        <SchoolSelect value={newStudent.schoolId} onChange={schoolId => setNewStudent(student=>({...student,schoolId}))}/>
+        <label>학생 이름<input required maxLength={40} autoFocus value={newStudent.name} onChange={(event) => setNewStudent((student) => ({ ...student, name: event.target.value }))} placeholder="예: 김하늘"/></label>
+        <div className="form-columns"><label>학년<select value={newStudent.grade} onChange={(event) => setNewStudent((student) => ({ ...student, grade: event.target.value }))}>{GRADES.map((grade) => <option key={grade} value={grade}>{grade}학년</option>)}</select></label><label>반<input maxLength={30} value={newStudent.classroom} onChange={(event) => setNewStudent((student) => ({ ...student, classroom: event.target.value }))} placeholder="예: 2반"/></label></div>
+        {addError && <p role="alert" className="alert">{addError}</p>}
+        <div className="button-row align-end"><button type="button" className="button button-quiet" onClick={() => setShowAddStudent(false)}>취소</button><button className="button button-primary" disabled={adding}><Plus size={19}/>{adding ? "등록 중…" : "학생 정보 등록"}</button></div>
+      </form>
+    </Modal>}
+  </main>;
+}
+
+function SearchInput({ value, onChange, placeholder = "학생 검색" }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
+  return <label className="search-field"><Search size={20}/><span className="sr-only">{placeholder}</span><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder}/></label>;
+}
+
+function Modal({ children, title, onClose }: { children: ReactNode; title: string; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => dialog?.close(); }, []);
+  return <dialog ref={ref} className="modal" aria-label={title} onCancel={onClose} onClick={(event) => {
+    if (event.target === event.currentTarget) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) onClose();
+    }
+  }}><button type="button" className="modal-close" onClick={onClose} aria-label="닫기"><X size={23}/></button>{children}</dialog>;
+}
+
+function DomainBar({ domain, value, index }: { domain: string; value?: number; index: number }) {
+  return <div className={`domain-bar tone-${index}`}><div className="domain-bar-label"><span>{domain}</span><strong>{value === undefined ? "진단 전" : `${value}%`}</strong></div><div className="domain-track"><div style={{ width: `${value ?? 0}%` }}/></div></div>;
+}
+
+function StatCard({ icon, label, value, note }: { icon: ReactNode; label: string; value: string; note: string }) {
+  return <div className="panel stat-card"><div className="stat-top"><span>{label}</span><span className="stat-icon">{icon}</span></div><strong>{value}</strong><p>{note}</p></div>;
+}
+
+function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout, onRefresh }: {
+  students: Student[]; results: Result[]; stats: typeof initialStats; error: string;
+  onAdd: () => void; onExport: () => void; onLogout: () => void; onRefresh: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<"overview" | "students" | "records" | "keys" | "feedback" | "schools">("overview");
+  const [selectedId, setSelectedId] = useState("");
+  const [detail, setDetail] = useState<{ student: Student; resultId?: string } | null>(null);
+  const [accountStudent, setAccountStudent] = useState<Student | null>(null);
+  const [schoolStudent,setSchoolStudent] = useState<Student | null>(null);
+  const [schoolFilter,setSchoolFilter] = useState("");
+  const schoolOptions = Array.from(new Map(students.filter(s=>s.schoolId).map(s=>[s.schoolId!, {id:s.schoolId!,label:s.schoolName + (s.schoolRegion ? ' ('+s.schoolRegion+')' : '')}])).values()).sort((a,b)=>a.label.localeCompare(b.label,'ko'));
+  const matched = students.filter(student => (!schoolFilter || (schoolFilter === "unassigned" ? !student.schoolId : student.schoolId === schoolFilter)) && `${student.name} ${student.schoolName ?? ''} ${student.schoolRegion ?? ''} ${student.classroom} ${student.grade}`.includes(query.trim()));
+  const [evaluationFilter,setEvaluationFilter]=useState('');
+  const evaluationOptions=Array.from(new Map(results.filter(r=>r.evaluationId).map(r=>[r.evaluationId!,{id:r.evaluationId!,name:(r.evaluationTitle??'평가')+' · '+r.evaluationCode}])).values());
   const visibleResults=results.filter(result=>(!selectedId||result.studentId===selectedId)&&(!evaluationFilter||result.evaluationId===evaluationFilter));
     const hasLegacy = results.some((result) => hasLegacyDomains(result.domains));
   const areaAverage = domains.map((domain) => {
