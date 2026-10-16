@@ -22,6 +22,7 @@ assert.equal((await api.admin.GET(request('/api/admin/evaluations','GET',null,'g
 assert.equal((await api.admin.POST(request('/api/admin/evaluations','POST',{},'student'))).status,401);
 assert.equal((await api.admin.POST(request('/api/admin/evaluations','POST',{},'teacher','https://other.test'))).status,403);
 const seeded=(await detail(await api.admin.GET(request('/api/admin/evaluations')))).evaluations;assert.equal(seeded.length,3);assert.equal(seeded.find(f=>f.grade===2).version,'legacy-key-version');assert.equal(seeded.find(f=>f.grade===2).status,'active');assert.equal(seeded.find(f=>f.grade===1).status,'draft');
+const bothSessions=new Request(origin+'/api/diagnosis/status?formId=legacy-g2',{headers:{Cookie:'teacher_session='+teacher+'; student_session='+student}});assert.equal((await detail(await api.status.GET(bothSessions))).evaluations[0].grade,2);
 const definition={title:'1차 진단',code:'A형',grade:1,items:[{id:'q1',number:1,topic:'수의 합',domain:'수와 연산',type:'short',choiceCount:4,answers:['2'],guidance:'수를 차례로 세어 보세요.'},{id:'q2',number:2,topic:'다섯 번째 보기',domain:'도형과 측정',type:'choice',choiceCount:5,answers:['5'],guidance:''}]};
 const publish=(def)=>({definition:def,status:'active',confirmed:true});
 assert.equal((await api.admin.POST(request('/api/admin/evaluations','POST',{...publish(definition),confirmed:false}))).status,400);

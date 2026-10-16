@@ -5,8 +5,8 @@ import { publicEvaluation } from '@/lib/evaluations';
 export async function GET(request:Request){
   const id=await studentSessionId(request),formId=new URL(request.url).searchParams.get('formId');
   try{
+    if(formId&&await isTeacher(request)){const form=await getEvaluation(formId);return form?privateJson({evaluations:[publicEvaluation(form)]}):jsonError('평가를 찾지 못했습니다.',404);}
     if(!id){
-      if(formId&&await isTeacher(request)){const form=await getEvaluation(formId);return form?privateJson({evaluations:[publicEvaluation(form)]}):jsonError('평가를 찾지 못했습니다.',404);}
       return jsonError('로그인 후 진단을 시작해 주세요.',401);
     }
     const student=await db().prepare('SELECT grade FROM students WHERE id=?').bind(id).first<{grade:number}>();
