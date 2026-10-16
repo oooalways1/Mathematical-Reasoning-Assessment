@@ -1,6 +1,6 @@
 import { questionBlueprints, type Grade } from './diagnosis-blueprint';
-import {choiceValue} from './evaluations';
-type ScanItems={id:string;number:number;type:'choice'|'short';choiceCount?:number}[];
+import {choiceValue,matchingValue} from './evaluations';
+type ScanItems={id:string;number:number;type:'choice'|'short'|'matching';choiceCount?:number;leftOptions?:string[]}[];
 
 export function parseNumberedAnswers(text: string, grade: Grade, customItems?:ScanItems) {
   const answers: Record<string, string> = {}, conflicts = new Set<string>();
@@ -11,7 +11,7 @@ export function parseNumberedAnswers(text: string, grade: Grade, customItems?:Sc
     if (!item) continue;
     const raw = match[2].trim();
     if (!raw || /^[_.\-\s]+$/.test(raw) || raw.length > 100) continue;
-    const answer = item.type === 'choice' ? choiceValue(raw,'choiceCount' in item ? item.choiceCount??4 : 4) : raw;
+    const answer = item.type === 'choice' ? choiceValue(raw,'choiceCount' in item ? item.choiceCount??4 : 4) : item.type==='matching'?matchingValue(raw,'leftOptions' in item?item.leftOptions?.length??0:0):raw;
     if (!answer || conflicts.has(item.id)) continue;
     if (answers[item.id] && answers[item.id] !== answer) { conflicts.add(item.id); delete answers[item.id]; }
     else answers[item.id] = answer;

@@ -7,6 +7,7 @@ export const evaluationSchema=[
   `CREATE UNIQUE INDEX IF NOT EXISTS evaluation_grade_code_idx ON evaluation_forms(grade,code)`,
   `CREATE TABLE IF NOT EXISTS evaluation_revisions (version TEXT PRIMARY KEY NOT NULL,form_id TEXT NOT NULL REFERENCES evaluation_forms(id),title TEXT NOT NULL,code TEXT NOT NULL,grade INTEGER NOT NULL,definition TEXT NOT NULL,created_at TEXT NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS evaluation_revision_form_idx ON evaluation_revisions(form_id)`,
+  `CREATE TABLE IF NOT EXISTS evaluation_trash (form_id TEXT PRIMARY KEY NOT NULL REFERENCES evaluation_forms(id),deleted_at TEXT NOT NULL)`,
 ];
 let ready:Promise<unknown>|undefined;
 export async function ensureEvaluations(){
@@ -25,10 +26,10 @@ export async function ensureEvaluations(){
   })().catch(error=>{ready=undefined;throw error;});
   await ready;
 }
-type Row={id:string;title:string;code:string;grade:number;status:EvaluationRecord['status'];version:string;definition:string;updatedAt:string};
-export function decodeEvaluation(row:Row):EvaluationRecord{return {...JSON.parse(row.definition) as EvaluationDefinition,id:row.id,status:row.status,version:row.version,updatedAt:row.updatedAt};}
-export async function getEvaluation(id:string){await ensureEvaluations();const row=await db().prepare('SELECT *,updated_at AS updatedAt FROM evaluation_forms WHERE id=?').bind(id).first<Row>();return row?decodeEvaluation(row):null;}
-export async function listEvaluations(grade?:number,active=false){
+type Row={id:string;title:string;code:string;grade:number;status:EvaluationRecord['status'];version:string;definition:string;updatedAt:string;trashed?:number};
+export function decodeEvaluation(row:Row):EvaluationRecord{return {...JSON.parse(row.definition) as EvaluationDefinition,id:row.id,status:row.status,version:row.version,updatedAt:row.updatedAt,trashed:Boolean(row.trashed)};}
+export async function getEvaluation(id:string){await ensureEvaluations();const row=await db().prepare('SELECT f.*,f.updated_at AS updatedAt,EXISTS(SELECT 1 FROM evaluation_trash t WHERE t.form_id=f.id) AS trashed FROM evaluation_forms f WHERE f.id=?').bind(id).first<Row>();return row?decodeEvaluation(row):null;}
+export async function listEvaluations(grade?:number,active=false,includeDeleted=false){
   await ensureEvaluations();
-  const rows=await db().prepare(`SELECT *,updated_at AS updatedAt FROM evaluation_forms WHERE (? IS NULL OR grade=?) AND (?=0 OR status='active') ORDER BY updated_at DESC,id`).bind(grade??null,grade??null,active?1:0).all<Row>();return rows.results.map(decodeEvaluation);
+  const rows=await db().prepare(`SELECT f.*,f.updated_at AS updatedAt,EXISTS(SELECT 1 FROM evaluation_trash t WHERE t.form_id=f.id) AS trashed FROM evaluation_forms f WHERE (? IS NULL OR grade=?) AND (?=0 OR status='active') AND (?=1 OR NOT EXISTS(SELECT 1 FROM evaluation_trash t WHERE t.form_id=f.id)) ORDER BY updated_at DESC,id`).bind(grade??null,grade??null,active?1:0,includeDeleted&&!active?1:0).all<Row>();return rows.results.map(decodeEvaluation);
 }

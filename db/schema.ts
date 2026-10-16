@@ -80,3 +80,7 @@ export const evaluationForms = sqliteTable('evaluation_forms',{
 export const evaluationRevisions = sqliteTable('evaluation_revisions',{
   version:text('version').primaryKey(),formId:text('form_id').notNull().references(()=>evaluationForms.id),title:text('title').notNull(),code:text('code').notNull(),grade:integer('grade').notNull(),definition:text('definition').notNull(),createdAt:text('created_at').notNull(),
 },table=>[index('evaluation_revision_form_idx').on(table.formId)]);
+
+export const evaluationTrash = sqliteTable('evaluation_trash',{
+  formId:text('form_id').primaryKey().references(()=>evaluationForms.id),deletedAt:text('deleted_at').notNull(),
+});

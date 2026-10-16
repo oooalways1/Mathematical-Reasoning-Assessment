@@ -7,7 +7,7 @@ const journal=JSON.parse(readFileSync('drizzle/meta/_journal.json','utf8'));
 for(const row of journal.entries)sql.exec(readFileSync('drizzle/'+row.tag+'.sql','utf8'));
 function prepare(query,values=[]){return {query,values,bind(...v){return prepare(query,v);},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return {meta:{changes:Number(sql.prepare(query).run(...values).changes)}};}};}
 globalThis.evaluationTestEnv={DB:{prepare,async batch(items){sql.exec('BEGIN');try{const rows=[];for(const item of items)rows.push(await item.run());sql.exec('COMMIT');return rows;}catch(e){sql.exec('ROLLBACK');throw e;}}},SESSION_SECRET:'evaluation-fixture-key',TEACHER_PASSWORD:'fixture-teacher'};
-const bundle=await build({stdin:{contents:`export * as admin from './app/api/admin/evaluations/route';export * as status from './app/api/diagnosis/status/route';export * as diagnosis from './app/api/diagnosis/route';export * as learning from './app/api/learning/route';export * as auth from './app/api/_lib';export * as models from './lib/evaluations';export * as data from './app/api/learning/data';export * as forms from './app/api/_evaluations';export * as scan from './lib/scan-answers';`,resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm',external:['pdfjs-dist','tesseract.js'],plugins:[{name:'test-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'test'}));b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:'export const env=globalThis.evaluationTestEnv;'}));}}]});
+const bundle=await build({stdin:{contents:`export * as admin from './app/api/admin/evaluations/route';export * as status from './app/api/diagnosis/status/route';export * as diagnosis from './app/api/diagnosis/route';export * as learning from './app/api/learning/route';export * as auth from './app/api/_lib';export * as models from './lib/evaluations';export * as data from './app/api/learning/data';export * as forms from './app/api/_evaluations';export * as scan from './lib/scan-answers';export * as examples from './lib/evaluation-examples';`,resolveDir:process.cwd()},bundle:true,write:false,platform:'node',format:'esm',external:['pdfjs-dist','tesseract.js'],plugins:[{name:'test-env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'test'}));b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:'export const env=globalThis.evaluationTestEnv;'}));}}]});
 // Scan imports stay lazy. None of the tests use OCR or make external requests.
 const api=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 globalThis.fetch=()=>{throw new Error('Unexpected network access');};
@@ -57,4 +57,40 @@ assert.deepEqual(api.scan.parseNumberedAnswers('1: 2\n2: ⑤',1,A.items).answers
 assert.equal(Object.keys(api.scan.parseNumberedAnswers('1: 2\n1: 3',1,A.items).answers).length,0);
 assert.equal(sql.prepare('SELECT COUNT(*) n FROM evaluation_revisions WHERE form_id=?').get(A.id).n,3);
 sql.exec(readFileSync('drizzle/0008_evaluation_versions.sql','utf8'));assert.equal(sql.prepare('SELECT COUNT(*) n FROM assessments').get().n,3);
-console.log('PASS: legacy migration, authorization, draft/public/archive, answer privacy, duplicate codes, independent A/B grading, 5-choice parsing, stale-version rejection, immutable results, custom feedback and practice, preserved history, idempotent migration');
+
+// Deletion is recoverable, removes student access, and never rewrites historical grading.
+assert.equal((await api.admin.DELETE(request('/api/admin/evaluations','DELETE',{id:B.id,expectedVersion:B.version},'student'))).status,401);
+assert.equal((await api.admin.DELETE(request('/api/admin/evaluations','DELETE',{id:B.id,expectedVersion:'old-version'}))).status,409);
+await detail(await api.admin.DELETE(request('/api/admin/evaluations','DELETE',{id:B.id,expectedVersion:B.version})));
+assert.equal((await api.forms.getEvaluation(B.id)).trashed,true);
+assert.equal((await submit(B)).status,409);
+assert.ok(!(await detail(await api.status.GET(request('/api/diagnosis/status','GET',null,'student')))).evaluations.some(f=>f.id===B.id));
+assert.equal((await api.data.readLearning('student-a',false)).results.find(r=>r.id===resultB.result.id).totalScore,0);
+assert.ok((await detail(await api.admin.GET(request('/api/admin/evaluations')))).evaluations.find(f=>f.id===B.id).trashed);
+assert.equal((await api.admin.PUT(request('/api/admin/evaluations','PUT',{...publish(B),id:B.id,expectedVersion:B.version}))).status,409);
+await detail(await api.admin.PATCH(request('/api/admin/evaluations','PATCH',{id:B.id,expectedVersion:B.version})));
+const restored=await api.forms.getEvaluation(B.id);assert.equal(restored.trashed,false);assert.equal(restored.status,'draft');assert.notEqual(restored.version,B.version);
+assert.equal((await submit(B)).status,409);
+// Matching keys are bijections, order-independent, and cannot reveal their mapping in the public form.
+const matching={...definition,title:'연결형 검증',code:'연결 연습',items:[{...definition.items[0],type:'matching',leftOptions:['1+1','2+2','3+3'],rightOptions:['6','2','4'],answers:['1-나,2-다,3-가']}]};
+const matched=(await detail(await api.admin.POST(request('/api/admin/evaluations','POST',publish(matching))))).evaluation;
+assert.equal((await detail(await submit(matched,{q1:'3-가,1-나,2-다'}))).result.totalScore,100);
+assert.equal((await detail(await submit(matched,{q1:'1-나,2-나,3-가'}))).result.totalScore,0);
+assert.equal((await detail(await submit(matched,{q1:'1-나'}))).result.totalScore,0);
+assert.equal((await api.admin.POST(request('/api/admin/evaluations','POST',publish({...matching,code:'잘못된 연결',items:[{...matching.items[0],answers:['1-나,2-나,3-가']}]})))).status,400);
+const matchingPublic=(await detail(await api.status.GET(request('/api/diagnosis/status','GET',null,'student')))).evaluations.find(f=>f.id===matched.id);
+assert.deepEqual(matchingPublic.items[0].leftOptions,['1+1','2+2','3+3']);assert.ok(!JSON.stringify(matchingPublic).includes('1-나'));
+assert.equal(api.scan.parseNumberedAnswers('1: 3-가,1-나,2-다',1,matched.items).answers.q1,'1-나,2-다,3-가');
+// Check examples against independent arithmetic and ensure known test items are never guessed.
+for(const grade of [1,2,3])for(const type of ['short','choice','matching'])for(let i=0;i<10;i++){
+  const base={id:'sample',number:1,topic:'',domain:'수와 연산',type,choiceCount:i%2?2:5,answers:[],guidance:''};
+  const item=api.examples.exampleItem(grade,base,i);api.models.validateEvaluation({title:'예시',code:'예시',grade,items:[item]},true);
+  if(type==='matching'){const connections=new Map(item.answers[0].split(',').map(s=>s.split('-')));for(let n=0;n<item.leftOptions.length;n++){const [a,b]=item.leftOptions[n].split('+').map(Number);const right=api.models.MATCH_LABELS.indexOf(connections.get(String(n+1)));assert.equal(Number(item.rightOptions[right]),a+b);}}
+  else{const [,a,b]=item.topic.match(/(\d+)\+(\d+)/);const expected=Number(a)+Number(b);if(type==='short')assert.equal(Number(item.answers[0]),expected);else{const number=Number(item.answers[0]);const found=item.topic.match(new RegExp(number+'\\) (-?\\d+)'));assert.equal(Number(found[1]),expected);}}
+  const [,p,q]=item.practice.prompt.match(/(\d+)\+(\d+)/);assert.equal(Number(item.practice.accepted[0]),Number(p)+Number(q));
+}
+const known={...definition.items[0],answers:[]},blank={...known,id:'blank',number:2,topic:'',guidance:'',standardId:undefined};
+const fill=api.examples.fillBlankExamples({title:'',code:'',grade:1,items:[known,blank]});assert.equal(fill.filled,1);assert.deepEqual(fill.definition.items[0],known);assert.equal(fill.definition.items[1].example,true);assert.ok(fill.definition.title&&fill.definition.code);
+sql.exec(readFileSync('drizzle/0009_evaluation_trash.sql','utf8'));
+
+console.log('PASS: evaluation versions, recoverable deletion and restoration, preserved history, matching grading and privacy, dynamic scan parsing, independently checked examples, non-destructive blank filling');
