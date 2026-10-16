@@ -6,6 +6,8 @@ export const schoolSchema = [
   `CREATE UNIQUE INDEX IF NOT EXISTS schools_name_region_idx ON schools(name,region)`,
   `CREATE TABLE IF NOT EXISTS student_schools (student_id TEXT PRIMARY KEY NOT NULL REFERENCES students(id) ON DELETE CASCADE, school_id TEXT NOT NULL REFERENCES schools(id), updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE INDEX IF NOT EXISTS student_schools_school_idx ON student_schools(school_id)`,
+  // One-time cleanup of the disposable account created during rollout verification.
+  `DELETE FROM students WHERE id='519f86f5-e8d2-40a0-a0fb-f7e2949096f2' AND firebase_uid='VNlG9iBA5FbMEtqqyThiGpbKmMG2' AND name='학교 검증' AND NOT EXISTS (SELECT 1 FROM assessments WHERE student_id=students.id) AND NOT EXISTS (SELECT 1 FROM student_schools WHERE student_id=students.id)`,
 ];
 let ready: Promise<unknown> | undefined;
 export async function ensureSchools() {
