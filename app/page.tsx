@@ -177,7 +177,6 @@ export default function Home() {
       onRefresh={() => void loadAdmin()}/></>}
 
     <footer className="site-footer"><div className="container">
-      <div className="footer-info"><div className="footer-brand"><BookOpenCheck size={21}/><strong>수리력 한걸음</strong></div><p>수학을 이해하는 힘, 함께 자라요.</p><small>초등 1·2·3학년 · 학년별 총 20문항</small></div>
       <nav className="footer-nav" aria-label="교사 관리"><button className={`admin-tab ${showAdmin ? "active" : ""}`} onClick={openAdmin}><Settings2 size={19}/> 관리페이지</button></nav>
     </div></footer>
 

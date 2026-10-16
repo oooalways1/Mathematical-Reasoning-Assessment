@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, BookOpenCheck, Calculator, ChartNoAxesCombined, Check, ChevronLeft, CircleHelp, ClipboardList, Eye, EyeOff, GraduationCap, LockKeyhole, UserRound, Shapes, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, Calculator, ChartNoAxesCombined, Check, ChevronLeft, CircleHelp, ClipboardList, Eye, EyeOff, GraduationCap, LockKeyhole, UserRound, Shapes, TrendingUp } from "lucide-react";
 import { domains, domainDescriptions } from "@/lib/assessment";
 import { GRADES, QUESTION_COUNT, type Grade } from "@/lib/diagnosis-blueprint";
 import type { StudentProfile } from '@/lib/diagnosis-model';
@@ -17,45 +17,46 @@ const domainIcons = [Calculator, TrendingUp, Shapes, ChartNoAxesCombined];
 export default function StudentPortal({ page, initialGrade, onNavigate, onGradeChange, onAuthenticated, student, sessionLoading }: Navigation & { page: PortalPage; initialGrade: Grade; student: StudentProfile | null; sessionLoading: boolean }) {
   return <>
     <div className="preview-banner"><span/>수리력 진단 <span className="preview-separator">·</span> 나만의 아이디로 시작해요.</div>
-    {page === "home" && <Landing onNavigate={onNavigate}/>}
+    {page === "home" && <Landing onNavigate={onNavigate} student={student} sessionLoading={sessionLoading}/>}
     {(page === "signup" || page === "login") && <AccountForm key={page} mode={page} onNavigate={onNavigate} onGradeChange={onGradeChange} onAuthenticated={onAuthenticated}/>}
     {page === "diagnosis" && <Diagnosis key={student?.id ?? initialGrade} student={student} sessionLoading={sessionLoading} initialGrade={initialGrade} onNavigate={onNavigate}/>}
     {page === "results" && <MyResults student={student} onNavigate={onNavigate}/>}
   </>;
 }
 
-function Landing({ onNavigate }: Navigation) {
-  return <div className="container portal-home">
-    <section className="landing-hero" aria-labelledby="home-title">
-      <div className="landing-copy">
-        <p className="hero-pill"><Sparkles size={16}/> 초등 1·2·3학년 수리력 진단</p>
-        <h1 id="home-title">수학을 이해하는 힘,<br/><em>한 걸음씩</em> 자라요.</h1>
-        <p className="landing-description">내가 잘하는 것과 더 배워 갈 것을 알아보는 시간.<br className="desktop-break"/>나에게 맞는 배움의 시작을 함께 찾아요.</p>
-        <div className="button-row hero-actions"><button className="button button-primary button-large" onClick={() => onNavigate("diagnosis")}>진단 시작하기 <ArrowRight size={21}/></button><button className="button button-outline button-large" onClick={() => onNavigate("signup")}>회원가입</button></div>
-        <div className="hero-facts"><span><ClipboardList size={17}/> 총 {QUESTION_COUNT}문항</span><span><GraduationCap size={18}/> 학년별 진단</span><span><Check size={17}/> 선택형 · 단답형</span></div>
+function Landing({ onNavigate, student, sessionLoading }: Navigation & { student: StudentProfile | null; sessionLoading: boolean }) {
+  return <div className="container home-simple">
+    <section className="home-start" aria-labelledby="home-title">
+      <div className="home-welcome">
+        <p className="hero-pill"><GraduationCap size={17}/> 초등 1·2·3학년 수리력 진단</p>
+        <h1 id="home-title">{student ? <>{student.name}님,<br/>오늘도 <em>한 걸음!</em></> : <>나의 수학 실력,<br/><em>어디까지 자랐을까?</em></>}</h1>
+        <p className="home-description">답안을 입력하면 결과를 바로 확인하고,<br/>나에게 필요한 연습을 이어 갈 수 있어요.</p>
+        {student ? <p className="home-profile">{student.schoolName ?? '학교 미지정'} · {student.grade}학년 {student.classroom}</p> : <p className="home-signup">처음 왔나요? <button className="text-button" onClick={()=>onNavigate('signup')}>회원가입하기 <ArrowRight size={16}/></button></p>}
+        <div className="hero-facts"><span><ClipboardList size={16}/> 학년별 20문항</span><span><Check size={16}/> 직접 입력 또는 파일 업로드</span></div>
       </div>
-      <div className="math-art" aria-hidden="true">
-        <div className="art-orbit"/><span className="art-spark spark-a">✦</span><span className="art-spark spark-b">+</span>
-        <div className="math-tile tile-numbers"><small>숫자와 친해지는 시간</small><div><span>1</span><span>2</span><span>3</span></div></div>
-        <div className="math-tile tile-shapes"><span className="art-square"/><span className="art-circle"/><span className="art-triangle"/></div>
-        <div className="art-notebook"><span className="notebook-label"><BookOpenCheck size={18}/> 나의 수학 한걸음</span><div className="notebook-lines"><i/><i/><i/></div><div className="notebook-bottom"><span>생각하고, 발견하고, 자라요</span><span className="notebook-check"><Check size={21}/></span></div></div>
-        <div className="art-caption"><span className="caption-dot"/> 오늘의 작은 발견이 내일의 자신감으로</div>
+      <div className="home-actions" aria-label="바로 시작하기">
+        <button className="home-action home-action-primary" disabled={sessionLoading} onClick={()=>onNavigate(student ? 'diagnosis' : 'login')}>
+          <span className="home-action-icon"><ClipboardList size={28}/></span>
+          <span className="home-action-copy"><small>검사지를 준비했나요?</small><strong>{sessionLoading ? '계정 확인 중…' : '진단 시작하기'}</strong><span>{student ? '우리 학년 답안을 입력해요.' : '로그인하고 답안을 입력해요.'}</span></span>
+          <ArrowRight size={25}/>
+        </button>
+        <button className="home-action" disabled={sessionLoading} onClick={()=>onNavigate('results')}>
+          <span className="home-action-icon"><ChartNoAxesCombined size={27}/></span>
+          <span className="home-action-copy"><small>진단을 마쳤나요?</small><strong>결과 확인 · 복습하기</strong><span>틀린 문제를 살펴보고 연습해요.</span></span>
+          <ArrowRight size={24}/>
+        </button>
       </div>
     </section>
-
-    <section className="portal-menu" aria-labelledby="menu-title">
-      <div className="section-heading"><div><p className="eyebrow">나의 수리력 한걸음</p><h2 id="menu-title">진단에서 다음 배움까지</h2></div><p className="section-note">진단 후 ‘나의 학습’에서 이어 가요.</p></div>
-      <div className="learning-feature-grid">{[['진단', '우리 학년 20문항의 답을 입력하고 결과를 저장해요.', ClipboardList], ['분석', '내 답과 정답을 비교하고, 다시 배울 내용을 알아봐요.', ChartNoAxesCombined], ['학습 지원', '오답과 연결된 연습 문제를 풀고 풀이를 확인해요.', BookOpenCheck], ['학습 관리', '연습 기록과 성장 추이를 살펴보고 리포트를 만들어요.', TrendingUp]].map(([title,description,Icon], index) => { const FeatureIcon = Icon as typeof ClipboardList; return <article className={`panel learning-feature tone-${index}`} key={String(title)}><span className="domain-icon"><FeatureIcon size={26}/></span><h3>{String(title)}</h3><p>{String(description)}</p></article>; })}</div>
+    <section className="home-flow" aria-labelledby="home-flow-title">
+      <h2 id="home-flow-title">이렇게 이용해요</h2>
+      <ol><li><span>1</span><div><strong>학교 선택 · 회원가입</strong><p>내 학교와 학년을 등록해요.</p></div></li><li><span>2</span><div><strong>진단 답안 제출</strong><p>검사지의 20문항 답을 입력해요.</p></div></li><li><span>3</span><div><strong>결과 확인 · 맞춤 복습</strong><p>부족한 내용을 알고 연습해요.</p></div></li></ol>
     </section>
-
-    <section id="guide" className="portal-guide" aria-labelledby="guide-title">
-      <div className="section-heading"><div><p className="eyebrow">진단 안내</p><h2 id="guide-title">어떤 배움을 살펴보나요?</h2></div></div>
-      <p className="guide-description">수리력을 이루는 네 가지 영역이에요. 학년에 따라 진단에서 다루는 내용은 달라요.</p>
-      <div className="domain-grid">{domains.map((domain, index) => { const Icon = domainIcons[index]; return <article key={domain} className={`domain-card tone-${index}`}><span className="domain-icon"><Icon size={26}/></span><h3>{domain}</h3><p>{domainDescriptions[domain]}</p></article>; })}</div>
-    </section>
-
-    <section className="how-to" aria-labelledby="how-title"><div><p className="eyebrow">이용 순서</p><h2 id="how-title">시작은 간단해요.</h2><p>차근차근, 나의 속도로 함께해요.</p></div><ol><li><span>01</span><div><h3>아이디로 회원가입</h3><p>학교를 선택하고 이름과 학년, 내 아이디를 입력해요.</p></div></li><li><span>02</span><div><h3>우리 학년 진단하기</h3><p>검사지를 보며 총 {QUESTION_COUNT}문항의 답을 입력해요.</p></div></li><li><span>03</span><div><h3>나의 결과 살펴보기</h3><p>나의 강점을 찾고 다음 배움을 준비해요.</p></div></li></ol></section>
-    <aside className="learning-note"><CircleHelp size={23}/><p>진단은 배움을 돕기 위한 첫걸음이에요.<br/>점수와 함께 풀이 과정을 살펴보며, 나에게 필요한 연습을 찾아보세요.</p></aside>
+    <details className="home-guide" id="guide">
+      <summary><span><CircleHelp size={19}/> 어떤 내용을 진단하나요?</span><span className="home-guide-toggle" aria-hidden="true">+</span></summary>
+      <p className="guide-description">수와 연산, 변화와 관계, 도형과 측정, 자료와 가능성을 살펴요. 학년에 따라 다루는 내용은 달라요.</p>
+      <div className="domain-grid">{domains.map((domain,index)=>{const Icon=domainIcons[index];return <article className={`domain-card tone-${index}`} key={domain}><span className="domain-icon"><Icon size={23}/></span><h3>{domain}</h3><p>{domainDescriptions[domain]}</p></article>;})}</div>
+      <p className="home-guide-note">진단은 다음 배움을 찾는 첫걸음이에요. 결과와 함께 풀이 과정을 살펴보세요.</p>
+    </details>
   </div>;
 }
 
