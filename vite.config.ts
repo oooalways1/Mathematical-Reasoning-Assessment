@@ -39,6 +39,9 @@ const localBindingConfig = {
 
 export default defineConfig(async ({ command }) => {
   const deployment=deploymentTarget(process.env,command);
+  // Production rollout enables the approved free-plan AI flow by default.
+  // Preview builds still require explicit opt-in and isolated resources.
+  const enableAi=process.env.NUMERACY_AI_BINDING==='true'||(command==='build'&&!deployment.preview&&process.env.NUMERACY_AI_BINDING!=='false');
   // Use Miniflare's local Request.cf placeholder unless fetching is requested.
   process.env.CLOUDFLARE_CF_FETCH_ENABLED ??= "false";
   process.env.WRANGLER_SEND_METRICS ??= "false";
@@ -71,7 +74,7 @@ export default defineConfig(async ({ command }) => {
         inspectorPort: false,
         config: {
           ...localBindingConfig,
-          ...(process.env.NUMERACY_AI_BINDING === 'true' ? {ai:{binding:'AI'}} : {}),
+          ...(enableAi ? {ai:{binding:'AI'},vars:{AI_ENABLED:'true',AI_FREE_PLAN_CONFIRMED:'true'}} : {}),
           // Own-account deployments use the real D1 database. Keep the local
           // preview binding above so existing preview records stay available.
           ...(command === "build"

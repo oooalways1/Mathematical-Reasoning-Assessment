@@ -58,7 +58,7 @@ Cloudflare 계정 화면에서 현재 Workers Free, Workers AI 일일 10,000 Neu
 
 참고: [Qwen 모델](https://developers.cloudflare.com/workers-ai/models/qwen3-30b-a3b-fp8/), [모델 지원 종료 공지](https://developers.cloudflare.com/changelog/post/2026-05-08-planned-model-deprecations/), [무료/과금 기준](https://developers.cloudflare.com/workers-ai/platform/pricing/).
 
-설정은 두 단계다. 빌드 시 `NUMERACY_AI_BINDING=true`로 `AI` 바인딩을 포함하고, 런타임에 `AI_ENABLED=true`, `AI_FREE_PLAN_CONFIRMED=true`를 설정해야 호출된다. 외부 생성형 AI API 키는 필요 없다.
+운영 승인 후 production 빌드는 `AI` 바인딩과 `AI_ENABLED=true`, `AI_FREE_PLAN_CONFIRMED=true`를 기본 포함하도록 설정했다. 검증 빌드는 `NUMERACY_AI_BINDING=true` 명시가 필요하다. `NUMERACY_AI_BINDING=false`로 바인딩을 제외할 수 있다. 외부 생성형 AI API 키는 필요 없다.
 
 앱은 학생당 하루 최대 3회, 앱 전체 예약량 하루 9,000 Neurons, 요청당 200 Neurons 보수적 예약으로 제한한다. 따라서 **현재 앱 전체 AI 생성 상한은 하루 45회**다. 300명 모두가 같은 날 제출해도 전원 AI 생성이 보장되는 설정은 아니며, 초과 학생에게는 기본 피드백을 제공한다. 예약량은 실제 청구 계측값이 아니다. 실제 수치는 Cloudflare 사용량이 기준이며 같은 계정의 다른 앱 사용량도 공유된다. 입력 9KB·출력 1,600토큰 제한을 적용한다. 무료 한도를 넘거나 AI가 실패해도 진단 저장과 채점은 유지된다. 유료 전환은 별도 승인 대상이다.
 
