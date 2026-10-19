@@ -51,11 +51,26 @@ export async function lookupFirebaseAccount(uid: string) {
   return payload.users?.find(user => user.localId === uid) ?? null;
 }
 
-export async function updateFirebaseAccount(uid: string, password: string, email?: string) {
+export async function lookupFirebaseAccountByEmail(email:string){
+  const token=await firebaseServiceToken();
+  const response=await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:lookup`,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({email:[email]})});
+  const payload=await response.json() as {users?:{localId:string;email?:string}[]};
+  if(!response.ok)throw Error('Firebase account lookup failed');
+  return payload.users?.find(user=>user.email?.toLowerCase()===email.toLowerCase())??null;
+}
+
+export async function updateFirebaseIdentity(uid:string,email:string,displayName:string){
+  const token=await firebaseServiceToken();
+  const response=await fetch('https://identitytoolkit.googleapis.com/v1/accounts:update',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({targetProjectId:PROJECT_ID,localId:uid,email,displayName})});
+  const data=await response.json() as {localId?:string};
+  if(!response.ok||data.localId!==uid)throw Error('Firebase profile update failed');
+}
+
+export async function updateFirebaseAccount(uid: string, password: string, email?: string, displayName?:string) {
   const token = await firebaseServiceToken();
   const response = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:update', {
     method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ targetProjectId: PROJECT_ID, localId: uid, password, ...(email ? { email } : {}), validSince: String(Math.floor(Date.now() / 1000)) }),
+    body: JSON.stringify({ targetProjectId: PROJECT_ID, localId: uid, password, ...(email ? { email } : {}), ...(displayName!==undefined?{displayName}:{}), validSince: String(Math.floor(Date.now() / 1000)) }),
   });
   const payload = await response.json() as { localId?: string; error?: { message?: string } };
   if (!response.ok || payload.localId !== uid) {

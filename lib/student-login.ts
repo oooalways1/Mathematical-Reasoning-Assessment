@@ -1,6 +1,7 @@
-// Students enter their own ID; Firebase still receives an ASCII email alias.
+// Firebase accepts Korean email local parts. Keep older encoded aliases usable.
 const LOGIN_DOMAIN = "students.soori-270e0.invalid";
 const LEGACY_USERNAME_PATTERN = /^[a-z][a-z0-9_]{3,19}$/;
+const READABLE_USERNAME_PATTERN = /^[\p{L}\p{N}_-]{1,40}$/u;
 // Empty/invisible IDs and @ are excluded so old email logins stay unambiguous.
 export const USERNAME_PATTERN = /^(?!\s*$)[^@\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]{1,40}$/;
 export const USERNAME_GUIDE = "한글·숫자도 사용할 수 있어요 (예: 민수, 1234)";
@@ -26,6 +27,12 @@ export function normalizeUsername(value: unknown) {
 
 export function usernameEmail(username: string) {
   if (!USERNAME_PATTERN.test(username)) throw new Error("Invalid username");
+  if(READABLE_USERNAME_PATTERN.test(username)&&!username.startsWith('u-'))return `${username}@${LOGIN_DOMAIN}`;
+  return legacyUsernameEmail(username);
+}
+
+export function legacyUsernameEmail(username: string) {
+  if (!USERNAME_PATTERN.test(username)) throw new Error("Invalid username");
   // Preserve every old ASCII ID's exact Firebase identity.
   if(LEGACY_USERNAME_PATTERN.test(username))return `${username}@${LOGIN_DOMAIN}`;
   // Lowercase base32 survives Firebase email canonicalization. Long IDs use
@@ -42,11 +49,17 @@ export function loginEmail(value: unknown) {
   return null;
 }
 
+export function loginEmails(value: unknown) {
+  const id=normalizeUsername(value),preferred=loginEmail(value);
+  if(!preferred)return [];
+  return USERNAME_PATTERN.test(id)?[...new Set([preferred,legacyUsernameEmail(id)])]:[preferred];
+}
+
 export function usernameFromEmail(email: string) {
   const normalized=email.toLowerCase(),at=normalized.lastIndexOf('@'),local=normalized.slice(0,at),domain=normalized.slice(at+1);
-  if(domain===LOGIN_DOMAIN&&LEGACY_USERNAME_PATTERN.test(local))return local;
+  if(domain===LOGIN_DOMAIN&&!local.startsWith('u-')&&USERNAME_PATTERN.test(local))return local;
   if(local.startsWith('u-')&&(domain===LOGIN_DOMAIN||domain.endsWith('.'+LOGIN_DOMAIN))){
-    try{const tail=domain===LOGIN_DOMAIN?'':domain.slice(0,-LOGIN_DOMAIN.length-1).replaceAll('.','');const id=decodeId(local.slice(2)+tail);if(USERNAME_PATTERN.test(id)&&usernameEmail(id)===normalized)return id;}catch{/* Existing email accounts remain readable. */}
+    try{const tail=domain===LOGIN_DOMAIN?'':domain.slice(0,-LOGIN_DOMAIN.length-1).replaceAll('.','');const id=decodeId(local.slice(2)+tail);if(USERNAME_PATTERN.test(id)&&legacyUsernameEmail(id)===normalized)return id;}catch{/* Existing email accounts remain readable. */}
   }
   return email;
 }

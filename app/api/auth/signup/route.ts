@@ -1,8 +1,9 @@
 import { env } from "cloudflare:workers";
 import { createStudentSession, db, jsonError, privateJson, sameOrigin, sessionCookie } from "../../_lib";
-import { normalizeUsername, usernameEmail, USERNAME_PATTERN, USERNAME_ERROR } from "@/lib/student-login";
+import { normalizeUsername, usernameEmail, legacyUsernameEmail, USERNAME_PATTERN, USERNAME_ERROR } from "@/lib/student-login";
 import { allowAccountAction } from '../../_auth-limits';
 import { activeSchool, schoolAssignment } from '../../_schools';
+import {lookupFirebaseAccountByEmail} from '../../_firebase-admin';
 
 type Body = { name?: unknown; grade?: unknown; classroom?: unknown; username?: unknown; password?: unknown; schoolId?: unknown };
 
@@ -32,7 +33,11 @@ export async function POST(request: Request) {
     await database.prepare("SELECT firebase_uid FROM students LIMIT 1").first();
     const id = crypto.randomUUID();
     const session = await createStudentSession(id);
-    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, returnSecureToken: true }) });
+    // An old encoded identity also owns this ID. New readable identities remain
+    // protected by Firebase's atomic email uniqueness check.
+    const reservedEmail=legacyUsernameEmail(username);
+    if(email!==reservedEmail&&await lookupFirebaseAccountByEmail(reservedEmail))return jsonError('이미 사용 중인 아이디입니다. 다른 아이디를 입력하거나 로그인해 주세요.',409);
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, displayName:username, returnSecureToken: true }) });
     const firebase = await response.json() as { localId?: string; idToken?: string; error?: { message?: string } };
     if (!response.ok || !firebase.localId || !firebase.idToken) {
       if (firebase.error?.message === "EMAIL_EXISTS") return jsonError("이미 사용 중인 아이디입니다. 다른 아이디를 입력하거나 로그인해 주세요.", 409);

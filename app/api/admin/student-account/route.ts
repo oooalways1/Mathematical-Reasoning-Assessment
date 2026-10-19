@@ -1,8 +1,8 @@
 import { env } from 'cloudflare:workers';
 import { db, isTeacher, jsonError, privateJson, sameOrigin } from '../../_lib';
-import { firebaseAdminConfigured, lookupFirebaseAccount, updateFirebaseAccount } from '../../_firebase-admin';
+import { firebaseAdminConfigured, lookupFirebaseAccount, lookupFirebaseAccountByEmail, updateFirebaseAccount } from '../../_firebase-admin';
 import { allowAccountAction } from '../../_auth-limits';
-import { normalizeUsername, usernameEmail, usernameFromEmail, USERNAME_PATTERN, USERNAME_ERROR } from '@/lib/student-login';
+import { normalizeUsername, usernameEmail, legacyUsernameEmail, usernameFromEmail, USERNAME_PATTERN, USERNAME_ERROR } from '@/lib/student-login';
 import {administrator,canStudent,audit,studentSchool} from '../../_tenancy';
 import {firebasePassword,adminEmail} from '../../_firebase-auth';
 
@@ -40,6 +40,10 @@ export async function POST(request: Request) {
     else{const account=await db().prepare('SELECT login_id,firebase_uid FROM administrators WHERE id=? AND active=1').bind(actor.id).first<{login_id:string;firebase_uid:string}>();if(!account||typeof body.teacherPassword!=='string'||await firebasePassword(adminEmail(account.login_id),body.teacherPassword)!==account.firebase_uid)return jsonError('현재 관리자 비밀번호로 다시 인증해 주세요.',401);}
     const student = await db().prepare('SELECT firebase_uid FROM students WHERE id=?').bind(studentId).first<{ firebase_uid: string | null }>();
     if (!student?.firebase_uid) return jsonError('회원가입이 완료된 학생만 비밀번호를 변경할 수 있습니다.', 404);
+    if(username&&legacyUsernameEmail(username)!==usernameEmail(username)){
+      const existing=await lookupFirebaseAccountByEmail(legacyUsernameEmail(username));
+      if(existing&&existing.localId!==student.firebase_uid)return jsonError('이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.',409);
+    }
     // Invalidate existing app sessions before changing Firebase credentials.
     // A failed Firebase call may sign the student out, but cannot leave old
     // app sessions usable after a successful password change.
@@ -47,7 +51,7 @@ export async function POST(request: Request) {
     await db().prepare(`INSERT INTO admin_attempts (bucket, attempts, expires_at) VALUES (?, ?, ?)
       ON CONFLICT(bucket) DO UPDATE SET attempts=excluded.attempts, expires_at=excluded.expires_at`)
       .bind(`student-revocation:${studentId}`, now, now + 2 * 60 * 60 * 1000).run();
-    const outcome = await updateFirebaseAccount(student.firebase_uid, password, username ? usernameEmail(username) : undefined);
+    const outcome = await updateFirebaseAccount(student.firebase_uid, password, username ? usernameEmail(username) : undefined, username||undefined);
     if (outcome === 'duplicate') return jsonError('이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.', 409);
     await audit(actor,'student.credentials-reset',studentId,await studentSchool(studentId));return privateJson({ ok: true, message: username ? '아이디와 비밀번호를 변경했습니다. 학생에게 새 로그인 정보를 알려 주세요.' : '비밀번호를 변경했습니다. 학생에게 새 비밀번호를 알려 주세요.' });
   } catch { return jsonError('변경을 완료하지 못했습니다. Firebase 관리자 권한을 확인한 뒤 다시 시도해 주세요.', 503); }
