@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 import { db, isTeacher, jsonError, privateJson, sameOrigin } from '../../_lib';
 import { firebaseAdminConfigured, lookupFirebaseAccount, updateFirebaseAccount } from '../../_firebase-admin';
 import { allowAccountAction } from '../../_auth-limits';
-import { normalizeUsername, usernameEmail, usernameFromEmail, USERNAME_PATTERN, USERNAME_GUIDE } from '@/lib/student-login';
+import { normalizeUsername, usernameEmail, usernameFromEmail, USERNAME_PATTERN, USERNAME_ERROR } from '@/lib/student-login';
 import {administrator,canStudent,audit,studentSchool} from '../../_tenancy';
 import {firebasePassword,adminEmail} from '../../_firebase-auth';
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   const password = typeof body.password === 'string' ? body.password : '';
   const username = normalizeUsername(body.username);
   if (!studentId || studentId.length > 100 || password.length < 6 || password.length > 128) return jsonError('학생과 최소 6자리 비밀번호를 확인해 주세요.');
-  if (username && !USERNAME_PATTERN.test(username)) return jsonError(`새 아이디는 ${USERNAME_GUIDE}로 입력해 주세요.`);
+  if (username && !USERNAME_PATTERN.test(username)) return jsonError(USERNAME_ERROR);
   try {
     if (!await allowAccountAction(request, 'account-reset', 10)) return jsonError('시도 횟수를 초과했습니다. 15분 후 다시 시도해 주세요.', 429);
     const actor=await administrator(request);if(!actor||!await canStudent(actor,studentId))return jsonError('학생을 찾지 못했습니다.',404);

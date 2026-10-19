@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { createStudentSession, db, jsonError, privateJson, sameOrigin, sessionCookie } from "../../_lib";
-import { normalizeUsername, usernameEmail, USERNAME_PATTERN, USERNAME_GUIDE } from "@/lib/student-login";
+import { normalizeUsername, usernameEmail, USERNAME_PATTERN, USERNAME_ERROR } from "@/lib/student-login";
 import { allowAccountAction } from '../../_auth-limits';
 import { activeSchool, schoolAssignment } from '../../_schools';
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const username = normalizeUsername(body.username);
   const password = typeof body.password === "string" ? body.password : "";
   if (!name || !Number.isInteger(grade) || grade < 1 || grade > 3) return jsonError("이름과 1~3학년 정보를 입력해 주세요.");
-  if (!USERNAME_PATTERN.test(username)) return jsonError(`아이디는 ${USERNAME_GUIDE}로 입력해 주세요.`);
+  if (!USERNAME_PATTERN.test(username)) return jsonError(USERNAME_ERROR);
   const email = usernameEmail(username);
   if (password.length < 6) return jsonError("비밀번호는 최소 6자리로 입력해 주세요.");
   if (password.length > 128) return jsonError("비밀번호가 너무 깁니다. 더 짧게 입력해 주세요.");

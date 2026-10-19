@@ -5,7 +5,7 @@ import { ArrowRight, Calculator, ChartNoAxesCombined, Check, ChevronLeft, Circle
 import { domains, domainDescriptions } from "@/lib/assessment";
 import { GRADES, type Grade } from "@/lib/diagnosis-blueprint";
 import type { StudentProfile } from '@/lib/diagnosis-model';
-import { normalizeUsername, USERNAME_PATTERN, USERNAME_GUIDE } from '@/lib/student-login';
+import { normalizeUsername, USERNAME_PATTERN, USERNAME_GUIDE, USERNAME_ERROR } from '@/lib/student-login';
 import SchoolSelect from './school-select';
 import Diagnosis from './diagnosis';
 import MyResults from './my-results';
@@ -80,7 +80,7 @@ function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated }: Navig
     if (signup && !schoolId) { setError("목록에서 초등학교를 선택해 주세요."); setSubmitting(false); return; }
     if (signup && (!name || ![1, 2, 3].includes(grade))) { setError("이름과 학년을 입력해 주세요."); setSubmitting(false); return; }
     if (!username || !password) { setError("아이디와 비밀번호를 입력해 주세요."); setSubmitting(false); return; }
-    if (signup && !USERNAME_PATTERN.test(username)) { setError(`아이디는 ${USERNAME_GUIDE}로 입력해 주세요.`); setSubmitting(false); return; }
+    if (signup && !USERNAME_PATTERN.test(username)) { setError(USERNAME_ERROR); setSubmitting(false); return; }
     if (signup && password.length < 6) { setError("비밀번호는 최소 6자리로 입력해 주세요."); setSubmitting(false); return; }
     if (signup && password !== confirmation) { setError("비밀번호가 서로 다릅니다."); setSubmitting(false); return; }
     try {
@@ -103,7 +103,7 @@ function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated }: Navig
       <div id="account-readiness" className="readiness-note" role="status"><LockKeyhole size={19}/><p>{signup ? "아이디와 비밀번호를 기억해 주세요." : "내 아이디로 로그인해요."}<br/><small>비밀번호를 잊었다면 선생님께 문의해 주세요.</small></p></div>
       <form className="form-stack" onSubmit={handleSubmit} aria-describedby="account-readiness" autoComplete="off">
         {signup && <><SchoolSelect value={schoolId} onChange={setSchoolId}/><label htmlFor="student-name">이름<input id="student-name" name="name" placeholder="이름을 입력해 주세요" maxLength={40}/></label><div className="form-columns"><label htmlFor="student-grade">학년<select id="student-grade" name="grade" defaultValue=""><option value="" disabled>학년 선택</option>{GRADES.map(grade => <option key={grade} value={grade}>{grade}학년</option>)}</select></label><label htmlFor="student-classroom">반 <small className="optional-label">선택</small><input id="student-classroom" name="classroom" placeholder="예: 2반" maxLength={30}/></label></div></>}
-        <label htmlFor="student-username">아이디<div className="input-with-icon"><UserRound size={19}/><input id="student-username" name="username" type="text" placeholder={signup ? "예: math1234" : "아이디를 입력해 주세요"} maxLength={signup ? 20 : 254} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" aria-describedby="username-help" required/></div><small id="username-help">{signup ? `${USERNAME_GUIDE} · 대소문자는 구분하지 않아요.` : "이전에 이메일로 가입했다면 이메일을 입력해 주세요."}</small></label>
+        <label htmlFor="student-username">아이디<div className="input-with-icon"><UserRound size={19}/><input id="student-username" name="username" type="text" placeholder={signup ? "예: 민수 또는 1234" : "아이디를 입력해 주세요"} maxLength={signup ? 40 : 254} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" aria-describedby="username-help" required/></div><small id="username-help">{signup ? `${USERNAME_GUIDE} · 대소문자는 구분하지 않아요.` : "이전에 이메일로 가입했다면 이메일을 입력해 주세요."}</small></label>
         <label htmlFor="student-password">비밀번호 {signup && <small>최소 6자리</small>}<div className="password-input"><input id="student-password" name="password" type={showPassword ? "text" : "password"} placeholder={signup ? "최소 6자리로 입력해 주세요" : "비밀번호를 입력해 주세요"} autoComplete={signup ? "new-password" : "current-password"} minLength={signup ? 6 : undefined} maxLength={128}/><button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}>{showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}</button></div></label>
         {signup && <label htmlFor="password-confirm">비밀번호 확인<input id="password-confirm" name="passwordConfirm" type="password" placeholder="비밀번호를 한 번 더 입력해 주세요" autoComplete="new-password" maxLength={128}/></label>}
         {error && <p className="alert" role="alert">{error}</p>}{notice && <p className="success-message" role="status">{notice}</p>}
