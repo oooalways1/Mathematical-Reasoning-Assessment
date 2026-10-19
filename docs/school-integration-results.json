@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-19",
+  "status": "awaiting-production-approval",
+  "productionChanged": false,
+  "remotePush": false,
+  "automatedChecks": {
+    "typescript": true,
+    "schoolIsolation": true,
+    "evaluationVersions": true,
+    "gradingAndReview": true,
+    "printedKoreanOcrAndTextPdf": true,
+    "deploymentIsolation": true,
+    "backupRestoreAndMigration": true
+  },
+  "cloudflare": {
+    "environment": "isolated Free Worker and remote D1",
+    "concurrentStudents": 50,
+    "questionsPerStudent": 20,
+    "passed": 50,
+    "p50Ms": 3540,
+    "p95Ms": 4488,
+    "maxMs": 4532,
+    "unauthenticatedValidationAccessBlocked": true,
+    "actualAiProviderRequests": 2,
+    "twentyWrongItemsInOneRequest": true,
+    "duplicateRequestsSuppressed": true,
+    "teacherApprovalRequired": true,
+    "teacherEditsPersisted": true,
+    "missingFigureCauseNotInvented": true,
+    "quotaFallbackPreservesSubmission": true,
+    "validationPublicAndPreviewUrlsDisabledAfterTest": true,
+    "paidUpgrade": false,
+    "appAiGenerationDailyCap": 45,
+    "observedAccountNeurons": 49.03,
+    "observedUsageIsExactPerTestBilling": false
+  },
+  "firebase": {
+    "realSyntheticSchoolAdminPasswordLogin": true,
+    "revocationAppliedImmediately": true,
+    "syntheticAccountsDeleted": true,
+    "existingAccountsChanged": false,
+    "serviceAccountCopiedToValidation": false,
+    "temporaryValidationWebApiSettingRemoved": true,
+    "newAdminServiceAccountProvisioningLiveTested": false
+  },
+  "remainingLimits": [
+    "Representative child handwriting and photographed scan accuracy need real samples.",
+    "First real administrator issuance needs verification with existing administrator fallback retained.",
+    "Google popup sign-in and automatic invitation email are not provided.",
+    "Verified three-level practice generation is limited to supported arithmetic; other topics require teacher materials.",
+    "Current daily AI limit is 45 generations across the app; excess submissions retain basic feedback."
+  ]
+}
