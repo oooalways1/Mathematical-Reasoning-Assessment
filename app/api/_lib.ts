@@ -23,19 +23,22 @@ async function verify(value: string, signature: string) {
   return crypto.subtle.verify("HMAC", key, bytes, new TextEncoder().encode(value));
 }
 
-function cookieValue(request: Request, name: string) {
+export function readCookie(request: Request, name: string) {
   const cookie = request.headers.get("Cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`));
   return cookie?.slice(name.length + 1);
 }
 
-export async function isTeacher(request: Request) {
-  const token = cookieValue(request, "teacher_session");
+export async function legacyTeacher(request: Request) {
+  const token = readCookie(request, "teacher_session");
   if (!token) return false;
   const [expiresAt, signature, extra] = token.split(".");
   if (extra !== undefined) return false;
   if (!expiresAt || !signature || !/^\d+$/.test(expiresAt) || Number(expiresAt) < Date.now()) return false;
   return verify("teacher." + expiresAt, signature);
 }
+export const verifySession = verify;
+export async function signSession(value:string){if(!env.SESSION_SECRET)throw new Error('Session secret missing');return sign(value,env.SESSION_SECRET);}
+export async function isTeacher(request:Request){return Boolean(await (await import('./_tenancy')).administrator(request));}
 
 export async function createTeacherSession(password: string) {
   const secret = env.TEACHER_PASSWORD;
@@ -65,7 +68,7 @@ export async function createStudentSession(studentId: string) {
 }
 
 export async function studentSessionId(request: Request) {
-  const token = cookieValue(request, "student_session");
+  const token = readCookie(request, "student_session");
   if (!token) return null;
   const [id, expiresAt, signature, extra] = token.split(".");
   if (!id || !expiresAt || !signature || extra !== undefined || !/^\d+$/.test(expiresAt) || Number(expiresAt) <= Date.now()) return null;

@@ -1,0 +1,4 @@
+import assert from 'node:assert/strict';import{deploymentTarget}from'../build/deployment-target.mjs';
+const production=deploymentTarget({},'build');assert.equal(production.name,'math-literacy');assert.throws(()=>deploymentTarget({WORKERS_CI_BRANCH:'development/test'},'build'));
+for(const id of [undefined,'bad',production.databaseId,'00000000-0000-4000-8000-000000000000'])assert.throws(()=>deploymentTarget({NUMERACY_DEPLOY_TARGET:'preview',NUMERACY_PREVIEW_DATABASE_ID:id},'build'));
+const preview=deploymentTarget({WORKERS_CI_BRANCH:'development/test',NUMERACY_DEPLOY_TARGET:'preview',NUMERACY_PREVIEW_DATABASE_ID:'12345678-1234-4234-8234-123456789abc'},'build');assert.equal(preview.name,'math-literacy-validation');assert.notEqual(preview.databaseId,production.databaseId);assert.equal(preview.preview,true);console.log('PASS: production target preserved; non-main CI is blocked unless preview has a separate valid database.');

@@ -4,6 +4,7 @@ import hostingConfig from "./.openai/hosting.json";
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
 import { sites } from "./build/sites-vite-plugin";
 import { connectorPreview } from "./build/connector-preview-plugin.mjs";
+import {deploymentTarget} from './build/deployment-target.mjs';
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
@@ -37,6 +38,7 @@ const localBindingConfig = {
 };
 
 export default defineConfig(async ({ command }) => {
+  const deployment=deploymentTarget(process.env,command);
   // Use Miniflare's local Request.cf placeholder unless fetching is requested.
   process.env.CLOUDFLARE_CF_FETCH_ENABLED ??= "false";
   process.env.WRANGLER_SEND_METRICS ??= "false";
@@ -69,17 +71,20 @@ export default defineConfig(async ({ command }) => {
         inspectorPort: false,
         config: {
           ...localBindingConfig,
+          ...(process.env.NUMERACY_AI_BINDING === 'true' ? {ai:{binding:'AI'}} : {}),
           // Own-account deployments use the real D1 database. Keep the local
           // preview binding above so existing preview records stay available.
           ...(command === "build"
             ? {
-                name: "math-literacy",
+                name: deployment.name,
+                ...(deployment.preview?{workers_dev:false,preview_urls:false}:{}),
                 d1_databases: d1
                   ? [
                       {
                         binding: d1,
-                        database_name: "numeracy-db",
-                        database_id: "0204db2f-5e94-49fa-b102-c2dadc48ace1",
+                        database_name: deployment.databaseName,
+                        database_id: deployment.databaseId,
+                        ...(deployment.preview?{preview_database_id:deployment.databaseId}:{}),
                       },
                     ]
                   : [],

@@ -47,6 +47,7 @@ next-env.d.ts
 !/build/sites-vite-plugin.LICENSE
 !/build/sites-vite-plugin.ts
 !/build/sites-worker.ts
+!/build/deployment-target.mjs
 
 /dist/
 /.wrangler/

@@ -1,0 +1,4 @@
+import {env} from 'cloudflare:workers';
+import {db,jsonError,privateJson} from '../../_lib';
+import {administrator,schoolFilter,assessmentSchoolSql,requestedSchool} from '../../_tenancy';
+export async function GET(request:Request){const actor=await administrator(request);if(!actor)return jsonError('인증이 필요합니다.',401);const f=schoolFilter(actor,requestedSchool(request,actor),assessmentSchoolSql());const rows=await db().prepare(`SELECT r.day,r.status,COUNT(*) AS requests,SUM(r.reserved_neurons) AS reservedNeurons FROM ai_requests r JOIN assessments a ON a.id=r.assessment_id WHERE ${f.sql} GROUP BY r.day,r.status ORDER BY r.day DESC LIMIT 60`).bind(...f.values).all();return privateJson({enabled:env.AI_ENABLED==='true'&&env.AI_FREE_PLAN_CONFIRMED==='true'&&Boolean(env.AI),dailyReservationLimit:9000,perStudentDailyLimit:3,usage:rows.results,note:'예약량은 실제 사용량이 아닙니다. 실제 계정 전체 Neurons는 Cloudflare 대시보드에서 확인합니다.'});}

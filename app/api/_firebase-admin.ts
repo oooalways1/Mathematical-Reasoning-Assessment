@@ -13,7 +13,7 @@ export function firebaseAdminConfigured() {
   return Boolean(env.FIREBASE_SERVICE_ACCOUNT_JSON);
 }
 
-async function adminToken() {
+export async function firebaseServiceToken() {
   if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) throw new Error('Firebase admin is not configured');
   const account = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON) as ServiceAccount;
   if (account.project_id !== PROJECT_ID || !account.client_email?.endsWith('.iam.gserviceaccount.com') || !account.private_key) {
@@ -41,7 +41,7 @@ async function adminToken() {
 }
 
 export async function lookupFirebaseAccount(uid: string) {
-  const token = await adminToken();
+  const token = await firebaseServiceToken();
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:lookup`, {
     method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ localId: [uid] }),
@@ -52,7 +52,7 @@ export async function lookupFirebaseAccount(uid: string) {
 }
 
 export async function updateFirebaseAccount(uid: string, password: string, email?: string) {
-  const token = await adminToken();
+  const token = await firebaseServiceToken();
   const response = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:update', {
     method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ targetProjectId: PROJECT_ID, localId: uid, password, ...(email ? { email } : {}), validSince: String(Math.floor(Date.now() / 1000)) }),
@@ -63,4 +63,7 @@ export async function updateFirebaseAccount(uid: string, password: string, email
     throw new Error('Firebase account update failed');
   }
   return 'updated' as const;
+}
+export async function createFirebaseAdministrator(email:string,password:string){
+ const token=await firebaseServiceToken();const r=await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts`,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({email,password})});const data=await r.json() as {localId?:string};if(!r.ok||!data.localId)throw new Error('관리자 계정을 생성하지 못했습니다. 아이디 중복 또는 Firebase 설정을 확인하세요.');return data.localId;
 }

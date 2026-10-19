@@ -1,0 +1,11 @@
+export const AI_MODEL='@cf/qwen/qwen3-30b-a3b-fp8';
+export type GeneratedFeedback={summary:string;nextSteps:string[];items:{questionId:string;explanation:string;hint:string;needsReview:boolean}[]};
+export function feedbackResponseFormat(ids:string[]){return {type:'json_schema' as const,json_schema:{type:'object',additionalProperties:false,required:['summary','nextSteps','items'],properties:{summary:{type:'string',minLength:1,maxLength:700},nextSteps:{type:'array',minItems:1,maxItems:5,items:{type:'string',minLength:1,maxLength:200}},items:{type:'array',minItems:ids.length,maxItems:ids.length,items:{type:'object',additionalProperties:false,required:['questionId','explanation','hint','needsReview'],properties:{questionId:{type:'string',enum:ids},explanation:{type:'string',minLength:1,maxLength:350},hint:{type:'string',minLength:1,maxLength:200},needsReview:{type:'boolean',const:true}}}}}}};}
+export function arithmeticClaimsValid(text:string){for(const match of text.matchAll(/(-?\d{1,5})\s*([+\-×*÷/])\s*(-?\d{1,5})\s*=\s*(-?\d+(?:\.\d+)?)/g)){const a=Number(match[1]),b=Number(match[3]),value=match[2]==='+'?a+b:match[2]==='-'?a-b:['×','*'].includes(match[2])?a*b:b===0?NaN:a/b;if(!Number.isFinite(value)||Math.abs(value-Number(match[4]))>1e-8)return false;}return true;}
+export function safeMath(value:string){const v=value.normalize('NFKC').trim();return v.length<=100&&/^[\d\s.,;:+\-−×÷*/=<>()[\]가나다라마바사아→%□?]+$/.test(v)?v:'[개인정보 보호를 위해 생략]';}
+export function validateGenerated(value:unknown,ids:string[]):GeneratedFeedback{
+ if(!value||typeof value!=='object')throw new Error('invalid AI response');const v=value as GeneratedFeedback;
+ const text=(s:unknown,n:number)=>typeof s==='string'&&s.length>0&&s.length<=n&&/[가-힣]/.test(s)&&!/[<>]|https?:|@/.test(s)&&arithmeticClaimsValid(s);
+ if(!text(v.summary,700)||!Array.isArray(v.nextSteps)||!v.nextSteps.length||v.nextSteps.length>5||v.nextSteps.some(s=>!text(s,200))||!Array.isArray(v.items)||v.items.length!==ids.length||new Set(v.items.map(i=>i.questionId)).size!==ids.length||v.items.some(i=>!ids.includes(i.questionId)||!text(i.explanation,350)||!text(i.hint,200)||typeof i.needsReview!=='boolean'))throw new Error('invalid AI schema');
+ return {summary:v.summary,nextSteps:v.nextSteps,items:v.items.map(i=>({...i,needsReview:true}))};
+}

@@ -1,8 +1,10 @@
 import { db, isTeacher, jsonError, privateJson, sameOrigin } from '../../_lib';
 import { GRADES } from '@/lib/diagnosis-blueprint';
+import {administrator} from '../../_tenancy';
 
 export async function GET(request: Request) {
   if (!await isTeacher(request)) return jsonError('교사 인증이 필요합니다.', 401);
+  if((await administrator(request))?.role!=='super')return jsonError('이전 공통 정답표는 총괄 관리자만 확인합니다.',403);
   try {
     const result = await db().prepare('SELECT grade, answers, version, updated_at AS updatedAt FROM diagnosis_keys').all<{ grade: number; answers: string; version: string; updatedAt: string }>();
     return privateJson({ keys: result.results.map(row => ({ ...row, answers: JSON.parse(row.answers) })), grades: GRADES });

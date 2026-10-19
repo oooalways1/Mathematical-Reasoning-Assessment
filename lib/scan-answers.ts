@@ -3,23 +3,28 @@ import {choiceValue,matchingValue} from './evaluations';
 type ScanItems={id:string;number:number;type:'choice'|'short'|'matching';choiceCount?:number;leftOptions?:string[]}[];
 
 export function parseNumberedAnswers(text: string, grade: Grade, customItems?:ScanItems) {
-  const answers: Record<string, string> = {}, conflicts = new Set<string>();
+  const answers: Record<string, string> = {}, conflicts = new Set<string>(),uncertain=new Set<string>();
   for (const line of text.split(/\r?\n/)) {
-    const match = line.normalize('NFKC').match(/^\s*(?:문항\s*)?(\d{1,2})\s*(?:번\s*)?[:.)-]\s*(?:답\s*[:：]\s*)?(.+?)\s*$/);
+    const match = line.normalize('NFKC').match(/^\s*(?:문항\s*)?(\d{1,2})\s*(?:번\s*)?(?:[:.)-]|(?=정답|답))\s*(.+?)\s*$/);
     if (!match) continue;
     const item = (customItems??questionBlueprints[grade]).find(item => item.number === Number(match[1]));
     if (!item) continue;
-    const raw = match[2].trim();
+    const explicit=/^(?:정답|답)(?:은|는)?\s*[:：]?\s*/.test(match[2]);
+    const raw = match[2].trim().replace(/^(?:정답|답)(?:은|는)?\s*[:：]?\s*/,'').replace(/\s*입니다[.!。]?$/,'').trim();
     if (!raw || /^[_.\-\s]+$/.test(raw) || raw.length > 100) continue;
     const answer = item.type === 'choice' ? choiceValue(raw,'choiceCount' in item ? item.choiceCount??4 : 4) : item.type==='matching'?matchingValue(raw,'leftOptions' in item?item.leftOptions?.length??0:0):raw;
-    if (!answer || conflicts.has(item.id)) continue;
+    if (!answer || conflicts.has(item.id)) {uncertain.add(item.id);continue;}
+    if(/[?？�]/.test(raw)||!explicit&&/^[a-z가-힣]{1,6}\s*[:：]/i.test(raw)||!explicit&&raw.length>25||!explicit&&item.type==='short'&&/[가-힣]{3}/.test(raw)&&!/^([가나다라마바사아][\s,]*)+$/.test(raw)){uncertain.add(item.id);continue;}
     if (answers[item.id] && answers[item.id] !== answer) { conflicts.add(item.id); delete answers[item.id]; }
     else answers[item.id] = answer;
   }
-  return { answers, conflicts: [...conflicts] };
+  return { answers, conflicts: [...conflicts],uncertain:[...new Set([...uncertain,...conflicts])] };
 }
 
-export type ScanResult = { answers: Record<string, string>; conflicts: string[]; text: string; previews: string[]; pages: number };
+export type ScanResult = { answers: Record<string, string>; conflicts: string[]; uncertain:string[]; text: string; previews: string[]; pages: number };
+export function inkChannel(data:Uint8ClampedArray,channel:'gray'|'red'|'blue'){
+ const output=new Uint8ClampedArray(data.length);for(let i=0;i<data.length;i+=4){const r=data[i],g=data[i+1],b=data[i+2];let value:number;if(channel==='gray')value=Math.min(r,g,b);else{const ink=channel==='red'?r-Math.max(g,b):b-Math.max(r,g);value=ink>30?Math.max(0,100-ink):Math.min(r,g,b)<85?40:255;}value=Math.max(0,Math.min(255,(value-110)*1.5+128));output[i]=output[i+1]=output[i+2]=value;output[i+3]=255;}return output;
+}
 export async function readAnswerFiles(files: File[], grade: Grade, onProgress: (message: string) => void, signal: AbortSignal, customItems?:ScanItems): Promise<ScanResult> {
   if (!files.length || files.length > 8 || files.reduce((size, file) => size + file.size, 0) > 20 * 1024 * 1024) throw new Error('총 20MB 이하, 최대 8개 파일을 선택해 주세요.');
   let worker: import('tesseract.js').Worker | undefined;
@@ -37,10 +42,12 @@ export async function readAnswerFiles(files: File[], grade: Grade, onProgress: (
         if (!signal.aborted && status === 'recognizing text') onProgress(`${pageCount}쪽 답안을 읽고 있어요 · ${Math.round(progress * 100)}%`);
       } });
       if (signal.aborted) { await worker.terminate(); check(); }
-      await worker.setParameters({ preserve_interword_spaces: '1' });
+      await worker.setParameters({ preserve_interword_spaces: '1',user_defined_dpi:'300' });
     }
     check();
-    return (await worker.recognize(canvas)).data.text;
+    const context=canvas.getContext('2d');if(!context)throw new Error('이미지 처리 불가');const original=context.getImageData(0,0,canvas.width,canvas.height);const texts:string[]=[];
+    for(const channel of ['gray','red','blue'] as const){check();const variant=document.createElement('canvas');variant.width=canvas.width;variant.height=canvas.height;variant.getContext('2d')!.putImageData(new ImageData(inkChannel(original.data,channel),canvas.width,canvas.height),0,0);const data=(await worker.recognize(variant)).data;texts.push(data.text);variant.width=variant.height=0;}
+    return texts.join('\n');
   }
   try {
     for (const file of files) {
@@ -68,7 +75,7 @@ export async function readAnswerFiles(files: File[], grade: Grade, onProgress: (
               text += item.str + (item.hasEOL ? '\n' : ' '); lastY = y;
             }
             const original = page.getViewport({ scale: 1 });
-            const viewport = page.getViewport({ scale: Math.min(2, 1800 / Math.max(original.width, original.height)) });
+            const viewport = page.getViewport({ scale: Math.min(3, 2800 / Math.max(original.width, original.height)) });
             const canvas = window.document.createElement('canvas');
             canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
             await page.render({ canvas, viewport }).promise;
@@ -81,7 +88,7 @@ export async function readAnswerFiles(files: File[], grade: Grade, onProgress: (
         if (++pageCount > 8) throw new Error('한 번에 최대 8쪽까지 읽을 수 있어요.');
         const bitmap = await createImageBitmap(file);
         if (bitmap.width * bitmap.height > 40_000_000) { bitmap.close(); throw new Error('이미지 크기가 너무 커요. 해상도를 낮춰 주세요.'); }
-        const scale = Math.min(1, 2200 / Math.max(bitmap.width, bitmap.height));
+        const scale = Math.min(2, 2800 / Math.max(bitmap.width, bitmap.height));
         const canvas = document.createElement('canvas'); canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
         const context = canvas.getContext('2d');
         if (!context) throw new Error('이 기기에서 이미지 읽기를 사용할 수 없어요.');

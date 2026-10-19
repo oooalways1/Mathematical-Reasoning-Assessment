@@ -7,6 +7,7 @@ import { GRADES, isGrade, type Grade } from "@/lib/diagnosis-blueprint";
 import StudentPortal, { type PortalPage } from "./student-portal";
 import type { StudentProfile } from '@/lib/diagnosis-model';
 import AnswerKeyEditor from './answer-key-editor';
+import AdminManagement,{AdminScope} from './admin-management';
 import LearningJourney from './learning-journey';
 import FeedbackLibrary from './feedback-library';
 import StudentAccountEditor from './student-account-editor';
@@ -42,7 +43,7 @@ export default function Home() {
   const [adminNotice, setAdminNotice] = useState("");
   const [showLogin, setShowLogin] = useState(false);
   const [admin, setAdmin] = useState(false);
-  const [pin, setPin] = useState("");
+  const [pin, setPin] = useState("");const [adminUsername,setAdminUsername]=useState(''),[scopeRevision,setScopeRevision]=useState(0);
   const [loginError, setLoginError] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [newStudent, setNewStudent] = useState({ name: "", grade: "1", classroom: "", schoolId: "" });
@@ -94,7 +95,7 @@ export default function Home() {
     setLoginError(""); setLoggingIn(true);
     try {
       const response = await fetch("/api/admin/session", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pin }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({password:pin,...(adminUsername.trim()?{username:adminUsername.trim()}:{})}),
       });
       if (!response.ok) {
         const payload = await response.json() as { error?: string };
@@ -165,7 +166,7 @@ export default function Home() {
     </div></header>
 
     {!showAdmin && <StudentPortal page={page} initialGrade={initialGrade} onNavigate={navigate} onGradeChange={setInitialGrade} onAuthenticated={authenticated} student={studentProfile} sessionLoading={sessionLoading}/>}
-    {showAdmin && admin && <>{adminNotice && <p className="container admin-notice" role="status">{adminNotice}</p>}<AdminPanel students={students} results={results} stats={stats} error={error}
+    {showAdmin && admin && <>{adminNotice && <p className="container admin-notice" role="status">{adminNotice}</p>}<AdminScope onChange={()=>{setStudents([]);setResults([]);setScopeRevision(n=>n+1);void loadAdmin();}}/><AdminPanel key={scopeRevision} students={students} results={results} stats={stats} error={error}
       onAdd={() => { setAddError(""); setShowAddStudent(true); }} onExport={exportCsv} onLogout={() => void logout()}
       onRefresh={() => void loadAdmin()}/></>}
 
@@ -175,8 +176,8 @@ export default function Home() {
 
     {showLogin && <Modal title="교사 관리페이지" onClose={() => { setShowLogin(false); setPin(""); }}>
       <span className="modal-icon"><LockKeyhole size={27}/></span><h2>교사 관리페이지</h2>
-      <p className="muted">관리자 비밀번호를 입력하면 대시보드로 들어갈 수 있어요.</p><form onSubmit={(event) => void login(event)} className="form-stack">
-        <label htmlFor="teacher-pin">비밀번호<input id="teacher-pin" type="password" inputMode="numeric" required autoComplete="current-password" autoFocus value={pin} onChange={(event) => setPin(event.target.value)} placeholder="비밀번호 입력"/></label>
+      <p className="muted">개인 관리자 아이디와 비밀번호로 로그인하세요. 이전 공용 로그인은 아이디를 비워 두세요.</p><form onSubmit={(event) => void login(event)} className="form-stack">
+        <label>관리자 아이디<input autoComplete="username" value={adminUsername} onChange={e=>setAdminUsername(e.target.value)} placeholder="이전 공용 로그인은 빈칸"/></label><label htmlFor="teacher-pin">비밀번호<input id="teacher-pin" type="password" required autoComplete="current-password" autoFocus value={pin} onChange={(event) => setPin(event.target.value)} placeholder="비밀번호 입력"/></label>
         <button className="button button-primary button-block" disabled={loggingIn}>{loggingIn ? "확인 중…" : "관리페이지 들어가기"} <ArrowRight size={19}/></button>
       </form>
       {loginError && <p role="alert" className="alert">{loginError}</p>}
@@ -223,7 +224,7 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
   onAdd: () => void; onExport: () => void; onLogout: () => void; onRefresh: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<"overview" | "students" | "records" | "keys" | "feedback" | "schools">("overview");
+  const [tab, setTab] = useState<"overview" | "students" | "records" | "keys" | "feedback" | "schools" | "administrators">("overview");
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState<{ student: Student; resultId?: string } | null>(null);
   const [accountStudent, setAccountStudent] = useState<Student | null>(null);
@@ -248,7 +249,7 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
       <div className="button-row"><button className="button button-outline" onClick={onRefresh}>새로고침</button><button className="button button-outline" onClick={onLogout}><LogOut size={18}/> 로그아웃</button></div>
     </div>
     {error && <p role="alert" className="alert">{error}</p>}
-    <nav className="admin-tabs" aria-label="관리 메뉴">{([["overview", "한눈에 보기"], ["students", "학생 관리"], ["schools", "학교 관리"], ["records", "진단 기록"], ["keys", "정답 설정"], ["feedback", "피드백 자료"]] as const).map(([id, label]) =>
+    <nav className="admin-tabs" aria-label="관리 메뉴">{([["overview", "한눈에 보기"], ["students", "학생 관리"], ["schools", "학교 관리"], ["records", "진단 기록"], ["keys", "정답 설정"], ["feedback", "피드백 자료"], ["administrators", "관리자·AI 사용량"]] as const).map(([id, label]) =>
       <button key={id} aria-current={!detail && tab === id ? "page" : undefined} className={!detail && tab === id ? "active" : ""} onClick={() => { setTab(id); setDetail(null); }}>{label}</button>)}</nav>
 
     {!detail && tab === "overview" && <>
@@ -284,11 +285,13 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
       </tbody></table></div>
       {!visibleResults.length && <div className="empty-state"><ClipboardList size={32}/><p>조회할 진단 기록이 없어요.</p></div>}
     </section>}
-    {!detail && tab === 'schools' && <SchoolManager onChanged={onRefresh}/>}
+    {!detail&&tab==='administrators'&&<><AdminManagement/><AiUsage/></>}{!detail && tab === 'schools' && <SchoolManager onChanged={onRefresh}/>}
     {schoolStudent && <Modal title="학생 학교 배정" onClose={()=>setSchoolStudent(null)}><StudentSchoolEditor student={schoolStudent} onSaved={()=>{setSchoolStudent(null);onRefresh();}}/></Modal>}
-    {!detail && tab === 'keys' && <AnswerKeyEditor/>}
+    {!detail && tab === 'keys' && <AnswerKeyEditor schoolId={typeof document==='undefined'?'':document.cookie.split('; ').find(v=>v.startsWith('school_scope='))?.slice(13)??''}/>}
     {!detail && tab === 'feedback' && <FeedbackLibrary/>}
     {accountStudent && <Modal title="학생 로그인 관리" onClose={() => setAccountStudent(null)}><StudentAccountEditor key={accountStudent.id} student={accountStudent}/></Modal>}
     <p className="admin-session-note"><ShieldCheck size={18}/> 공용 기기에서는 사용 후 로그아웃해 주세요.</p>
   </div>;
 }
+
+function AiUsage(){const [data,setData]=useState<{enabled:boolean;note:string;usage:{day:string;status:string;requests:number;reservedNeurons:number}[]}|null>(null);useEffect(()=>{fetch('/api/admin/ai-usage').then(r=>r.json() as Promise<{enabled:boolean;note:string;usage:{day:string;status:string;requests:number;reservedNeurons:number}[]}>).then(setData).catch(()=>{});},[]);return <section className="panel dashboard-panel"><h2>AI 사용량과 실패 현황</h2><p>{data?.enabled?'Workers AI 사용 중':'AI 비활성 · 기본 피드백 사용 중'}</p><p>{data?.note}</p><table className="data-table"><thead><tr><th>날짜</th><th>상태</th><th>요청 수</th><th>예약 Neurons</th></tr></thead><tbody>{data?.usage?.map((r,i)=><tr key={i}><td>{r.day}</td><td>{r.status}</td><td>{r.requests}</td><td>{r.reservedNeurons}</td></tr>)}</tbody></table></section>;}

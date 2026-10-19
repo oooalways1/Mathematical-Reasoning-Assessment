@@ -1,8 +1,9 @@
 import { createAccessCode, db, isTeacher, jsonError, privateJson, sameOrigin, studentSessionId } from "../_lib";
 import { activeSchool, schoolAssignment, withSchools } from '../_schools';
+import {administrator,canSchool,canStudent,requestedSchool,schoolFilter,studentSchoolSql,assessmentSchoolSql,audit} from '../_tenancy';
 
 export async function GET(request: Request) {
-  const teacher = await isTeacher(request);
+  const actor=await administrator(request);const teacher=Boolean(actor);
   const studentId = teacher ? null : await studentSessionId(request);
   if (!teacher && !studentId) return privateJson({ students: [], role: "guest" });
   try {
@@ -14,17 +15,20 @@ export async function GET(request: Request) {
         FROM students s WHERE s.id=?`).bind(studentId).first<{id:string}>();
       return privateJson({ students: student ? await withSchools([student]) : [], role: student ? "student" : "guest" });
     }
+    const filter=schoolFilter(actor!,requestedSchool(request,actor!),studentSchoolSql());
+    const scopeAssessment=schoolFilter(actor!,requestedSchool(request,actor!),assessmentSchoolSql());
     const [studentRows, statsRow] = await Promise.all([
       database.prepare(`
       SELECT s.id, s.name, s.grade, s.classroom, s.access_code AS accessCode, s.created_at AS createdAt,
-        (SELECT a.total_score FROM assessments a WHERE a.student_id=s.id ORDER BY a.completed_at DESC LIMIT 1) AS latestScore,
-        (SELECT COUNT(*) FROM assessments a WHERE a.student_id=s.id) AS assessmentCount
-      FROM students s ORDER BY s.name COLLATE NOCASE ASC
-    `).all<Record<string, unknown>>(),
-      database.prepare("SELECT COUNT(*) AS assessments, COALESCE(ROUND(AVG(total_score)),0) AS average FROM assessments").first<{ assessments: number; average: number }>(),
+        (SELECT a.total_score FROM assessments a WHERE a.student_id=s.id AND ${scopeAssessment.sql} ORDER BY a.completed_at DESC LIMIT 1) AS latestScore,
+        (SELECT COUNT(*) FROM assessments a WHERE a.student_id=s.id AND ${scopeAssessment.sql}) AS assessmentCount
+      FROM students s WHERE ${filter.sql} ORDER BY s.name COLLATE NOCASE ASC
+    `).bind(...scopeAssessment.values,...scopeAssessment.values,...filter.values).all<Record<string, unknown>>(),
+      database.prepare(`SELECT COUNT(*) AS assessments, COALESCE(ROUND(AVG(a.total_score)),0) AS average FROM assessments a WHERE ${scopeAssessment.sql}`).bind(...scopeAssessment.values).first<{ assessments: number; average: number }>(),
     ]);
     return privateJson({ students: await withSchools(studentRows.results.map(row => ({...row,id:String(row.id)}))), role: "teacher", stats: { students: studentRows.results.length, assessments: statsRow?.assessments ?? 0, average: statsRow?.average ?? 0, growth: 0 } });
   } catch (error) {
+    if(error instanceof Error&&error.message==='FORBIDDEN')return jsonError('담당 학교만 조회할 수 있습니다.',403);
     console.error("Could not read students", error);
     return jsonError("학생 정보를 불러오지 못했습니다.", 503);
   }
@@ -32,7 +36,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return jsonError("잘못된 요청입니다.", 403);
-  if (!await isTeacher(request)) return jsonError("교사 인증이 필요합니다.", 401);
+  const actor=await administrator(request);if(!actor)return jsonError('교사 인증이 필요합니다.',401);
   let body: { name?: unknown; grade?: unknown; classroom?: unknown; schoolId?: unknown };
   try { body = await request.json() as typeof body; } catch { return jsonError("학생 정보를 확인해 주세요."); }
   const name = typeof body.name === "string" ? body.name.trim().slice(0, 40) : "";
@@ -44,11 +48,12 @@ export async function POST(request: Request) {
   try {
     const school = await activeSchool(body.schoolId);
     if (!school) return jsonError('목록에서 가입 가능한 학교를 선택해 주세요.');
+    if(!canSchool(actor,school.id))return jsonError('담당 학교만 등록할 수 있습니다.',403);
     await db().batch([
       db().prepare("INSERT INTO students (id, name, grade, classroom, access_code) VALUES (?, ?, ?, ?, ?)").bind(id, name, grade, classroom, accessCode),
       schoolAssignment(id,school.id),
     ]);
-    return privateJson({ student: { id, name, grade, classroom, schoolId:school.id,schoolName:school.name,schoolRegion:school.region, accessCode, createdAt: new Date().toISOString(), latestScore: null, assessmentCount: 0 } }, { status: 201 });
+    await audit(actor,'student.create',id,school.id);return privateJson({ student: { id, name, grade, classroom, schoolId:school.id,schoolName:school.name,schoolRegion:school.region, accessCode, createdAt: new Date().toISOString(), latestScore: null, assessmentCount: 0 } }, { status: 201 });
   } catch (error) {
     console.error("Could not create student", error);
     return jsonError("학생을 등록하지 못했습니다.", 503);
@@ -57,7 +62,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   if (!sameOrigin(request)) return jsonError('잘못된 요청입니다.',403);
-  if (!await isTeacher(request)) return jsonError('교사 인증이 필요합니다.',401);
+  const actor=await administrator(request);if(!actor)return jsonError('교사 인증이 필요합니다.',401);if(actor.role!=='super')return jsonError('학교 이동은 총괄 관리자만 가능합니다.',403);
   let body: {studentId?:unknown;schoolId?:unknown};
   try { body = await request.json(); } catch { return jsonError('학생과 학교를 확인해 주세요.'); }
   if (typeof body.studentId !== 'string') return jsonError('학생을 선택해 주세요.');

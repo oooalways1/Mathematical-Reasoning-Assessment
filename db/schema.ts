@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const students = sqliteTable("students", {
   id: text("id").primaryKey(),
@@ -75,8 +75,9 @@ export const studentSchools = sqliteTable("student_schools", {
 }, table => [index("student_schools_school_idx").on(table.schoolId)]);
 
 export const evaluationForms = sqliteTable('evaluation_forms',{
+  schoolId:text('school_id').references(()=>schools.id),
   id:text('id').primaryKey(),title:text('title').notNull(),code:text('code').notNull(),grade:integer('grade').notNull(),status:text('status').notNull(),version:text('version').notNull(),definition:text('definition').notNull(),updatedAt:text('updated_at').notNull(),
-},table=>[uniqueIndex('evaluation_grade_code_idx').on(table.grade,table.code),check('evaluation_forms_status_check',sql`${table.status} IN ('draft','active','archived')`)]);
+},table=>[uniqueIndex('evaluation_school_grade_code_idx').on(sql`COALESCE(${table.schoolId},'')`,table.grade,table.code),check('evaluation_forms_status_check',sql`${table.status} IN ('draft','active','archived')`)]);
 export const evaluationRevisions = sqliteTable('evaluation_revisions',{
   version:text('version').primaryKey(),formId:text('form_id').notNull().references(()=>evaluationForms.id),title:text('title').notNull(),code:text('code').notNull(),grade:integer('grade').notNull(),definition:text('definition').notNull(),createdAt:text('created_at').notNull(),
 },table=>[index('evaluation_revision_form_idx').on(table.formId)]);
@@ -84,3 +85,15 @@ export const evaluationRevisions = sqliteTable('evaluation_revisions',{
 export const evaluationTrash = sqliteTable('evaluation_trash',{
   formId:text('form_id').primaryKey().references(()=>evaluationForms.id),deletedAt:text('deleted_at').notNull(),
 });
+export const administrators=sqliteTable('administrators',{id:text('id').primaryKey(),firebaseUid:text('firebase_uid').notNull().unique(),loginId:text('login_id').notNull().unique(),role:text('role').notNull(),active:integer('active').notNull().default(1),sessionVersion:integer('session_version').notNull().default(1),createdAt:text('created_at').notNull()});
+export const administratorSchools=sqliteTable('administrator_schools',{adminId:text('admin_id').notNull().references(()=>administrators.id),schoolId:text('school_id').notNull().references(()=>schools.id)},t=>[primaryKey({columns:[t.adminId,t.schoolId]})]);
+export const appSettings=sqliteTable('app_settings',{key:text('key').primaryKey(),value:text('value').notNull()});
+export const auditLog=sqliteTable('audit_log',{id:text('id').primaryKey(),actorId:text('actor_id').notNull(),action:text('action').notNull(),schoolId:text('school_id'),targetId:text('target_id').notNull(),details:text('details').notNull().default('{}'),createdAt:text('created_at').notNull()},t=>[index('audit_school_date').on(t.schoolId,t.createdAt)]);
+export const assessmentSchools=sqliteTable('assessment_schools',{assessmentId:text('assessment_id').primaryKey().references(()=>assessments.id),schoolId:text('school_id').references(()=>schools.id)});
+export const gradingReviews=sqliteTable('grading_reviews',{assessmentId:text('assessment_id').notNull().references(()=>assessments.id),questionId:text('question_id').notNull(),rawAnswer:text('raw_answer').notNull(),normalizedAnswer:text('normalized_answer'),status:text('status').notNull(),reason:text('reason').notNull(),revision:integer('revision').notNull().default(1)},t=>[primaryKey({columns:[t.assessmentId,t.questionId]})]);
+export const gradingState=sqliteTable('grading_state',{assessmentId:text('assessment_id').primaryKey().references(()=>assessments.id),revision:integer('revision').notNull().default(1)});
+export const gradingHistory=sqliteTable('grading_history',{id:text('id').primaryKey(),assessmentId:text('assessment_id').notNull(),questionId:text('question_id').notNull(),actorId:text('actor_id').notNull(),beforeValue:text('before_value').notNull(),afterValue:text('after_value').notNull(),reason:text('reason').notNull(),createdAt:text('created_at').notNull()});
+export const aiFeedback=sqliteTable('ai_feedback',{assessmentId:text('assessment_id').primaryKey().references(()=>assessments.id),status:text('status').notNull(),content:text('content'),model:text('model').notNull(),teacherContent:text('teacher_content'),revision:integer('revision').notNull().default(1),updatedAt:text('updated_at').notNull()});
+export const aiRequests=sqliteTable('ai_requests',{id:text('id').primaryKey(),assessmentId:text('assessment_id').notNull(),studentId:text('student_id').notNull(),day:text('day').notNull(),status:text('status').notNull(),reservedNeurons:integer('reserved_neurons').notNull(),createdAt:text('created_at').notNull()},t=>[index('ai_request_day').on(t.day,t.studentId)]);
+export const learningOverrides=sqliteTable('learning_overrides',{assessmentId:text('assessment_id').notNull(),questionId:text('question_id').notNull(),practice:text('practice'),roadmapNote:text('roadmap_note').notNull().default(''),revision:integer('revision').notNull().default(1)},t=>[primaryKey({columns:[t.assessmentId,t.questionId]})]);
+export const practiceAttemptDetails=sqliteTable('practice_attempt_details',{attemptId:text('attempt_id').primaryKey().references(()=>learningAttempts.id),practiceJson:text('practice_json').notNull()});
