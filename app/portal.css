@@ -583,3 +583,5 @@
 .radar-panel svg {width:100%;max-height:440px;overflow:visible}
 .radar-panel figcaption {font-size:15px;color:#5d7190}
 @media(max-width:640px){.scope-panel{align-items:stretch;gap:10px}.scope-panel label{flex-direction:column;align-items:stretch;width:100%}.grading-row button{width:100%}}
+.dashboard-panel label.checkbox-label { display:flex; align-items:center; gap:10px; margin:8px 0; font-weight:400; }
+.dashboard-panel label.checkbox-label input[type=checkbox] { width:18px; height:18px; min-height:18px; padding:0; margin:0; flex:0 0 18px; accent-color:#3478ed; }
