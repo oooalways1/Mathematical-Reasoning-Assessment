@@ -1,0 +1,143 @@
+{
+  "scope": "local browser upload using current app readAnswerFiles and patched scoreEvaluation, not production deployment",
+  "pages": 1,
+  "recognized": 6,
+  "correct": 0,
+  "score": 0,
+  "rows": [
+    {
+      "number": 1,
+      "expected": "4",
+      "recognized": "16",
+      "status": "incorrect"
+    },
+    {
+      "number": 2,
+      "expected": "12",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 3,
+      "expected": "6,10",
+      "recognized": "융",
+      "status": "incorrect"
+    },
+    {
+      "number": 4,
+      "expected": "1/2",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 5,
+      "expected": "나라",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 6,
+      "expected": "2",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 7,
+      "expected": "15",
+      "recognized": "75",
+      "status": "incorrect"
+    },
+    {
+      "number": 8,
+      "expected": "9",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 9,
+      "expected": "3+4",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 10,
+      "expected": "1.5",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 11,
+      "expected": "-3",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 12,
+      "expected": "20",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 13,
+      "expected": "8",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 14,
+      "expected": "7",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 15,
+      "expected": "가나",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 16,
+      "expected": "2",
+      "recognized": "으",
+      "status": "incorrect"
+    },
+    {
+      "number": 17,
+      "expected": "16",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 18,
+      "expected": "30",
+      "recognized": "0",
+      "status": "incorrect"
+    },
+    {
+      "number": 19,
+      "expected": "5",
+      "recognized": "",
+      "status": "incorrect"
+    },
+    {
+      "number": 20,
+      "expected": "10",
+      "recognized": "AQ",
+      "status": "incorrect"
+    }
+  ],
+  "conflicts": [],
+  "uncertain": [],
+  "text": "\nLe 모란\nTA\n2 ,\n그 6, /6\n+. 7 /' 2\n5, 나 라\n6,\n7. 75\n5, 9\nq.\n10, |. 5\n11, ~-극\n[7 ,\n3. 융\n73000\n15, ㄴㄴ LF\n16. 으\n1. 16\n18. 0\naq. 7\n20. AQ\n\nTos        ’              Eb        309\n00         200\n~\nJ\nTT   ;\na\ntrl\n[oN\n#73\na2\n\"              \"9\n\" ,              ,         Loe\n.       J\nFE\n&\n\n0209\n6,0\n나 ef\n5\nLB\nog\n\n. 2+ LF\n\nNY\n\n.      ie\n",
+  "date": "2026-11-25",
+  "fixture": "synthetic messy elementary handwriting, image-only PDF",
+  "acceptance": {
+    "requiredCorrect": 18,
+    "total": 20,
+    "passed": false
+  },
+  "missing": 14,
+  "incorrectlyFilled": 6,
+  "groundTruthGradingAfterCorrection": 100,
+  "deployment": "held: handwriting acceptance criterion failed"
+}
