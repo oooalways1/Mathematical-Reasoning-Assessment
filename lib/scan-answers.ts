@@ -1,5 +1,6 @@
 import { questionBlueprints, type Grade } from './diagnosis-blueprint';
 import {choiceValue,matchingValue} from './evaluations';
+import {normalizeAnswer} from './diagnosis-model';
 type ScanItems={id:string;number:number;type:'choice'|'short'|'matching';choiceCount?:number;leftOptions?:string[]}[];
 
 export function parseNumberedAnswers(text: string, grade: Grade, customItems?:ScanItems) {
@@ -15,7 +16,7 @@ export function parseNumberedAnswers(text: string, grade: Grade, customItems?:Sc
     const answer = item.type === 'choice' ? choiceValue(raw,'choiceCount' in item ? item.choiceCount??4 : 4) : item.type==='matching'?matchingValue(raw,'leftOptions' in item?item.leftOptions?.length??0:0):raw;
     if (!answer || conflicts.has(item.id)) {uncertain.add(item.id);continue;}
     if(/[?？�]/.test(raw)||!explicit&&/^[a-z가-힣]{1,6}\s*[:：]/i.test(raw)||!explicit&&raw.length>25||!explicit&&item.type==='short'&&/[가-힣]{3}/.test(raw)&&!/^([가나다라마바사아][\s,]*)+$/.test(raw)){uncertain.add(item.id);continue;}
-    if (answers[item.id] && answers[item.id] !== answer) { conflicts.add(item.id); delete answers[item.id]; }
+    if (answers[item.id] && normalizeAnswer(answers[item.id]) !== normalizeAnswer(answer)) { conflicts.add(item.id); delete answers[item.id]; }
     else answers[item.id] = answer;
   }
   return { answers, conflicts: [...conflicts],uncertain:[...new Set([...uncertain,...conflicts])] };

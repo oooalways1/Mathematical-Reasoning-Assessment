@@ -1,7 +1,7 @@
 export type Verdict='correct'|'incorrect'|'review';
 export type AnswerRule={type:'choice'|'short'|'matching';answers:string[];choiceCount:number;answerMode?:'exact'|'labels';orderMatters?:boolean;multiple?:boolean};
-export function mathematicalText(value:string){return value.normalize('NFKC').trim().toLowerCase().replace(/[−–]/g,'-').replace(/\s*([+\-×÷=<>])\s*/g,'$1').replace(/\s+/g,' ');}
-export function labelText(value:string,ordered=true){const v=value.normalize('NFKC').toLowerCase().trim();if(!/^[가나다라마바사아a-h1-8\s,，、;·]+$/.test(v))return null;const tokens=v.replace(/[\s,，、;·]/g,'').split('');if(!tokens.length||tokens.length>8||new Set(tokens).size!==tokens.length)return null;return (ordered?tokens:tokens.sort()).join(',');}
+export function mathematicalText(value:string){return value.normalize('NFKC').toLowerCase().replace(/[−–]/g,'-').replace(/[\s\u200b-\u200d\u2060\ufeff]+/g,'');}
+export function labelText(value:string,ordered=true){const v=mathematicalText(value);if(!/^[가나다라마바사아a-h1-8,，、;·]+$/.test(v))return null;const tokens=v.replace(/[,，、;·]/g,'').split('');if(!tokens.length||tokens.length>8||new Set(tokens).size!==tokens.length)return null;return (ordered?tokens:tokens.sort()).join(',');}
 export function compareAnswer(rule:AnswerRule,value:string):{status:Verdict;normalized:string|null;reason:string}{
  if(!value.trim())return {status:'incorrect',normalized:'',reason:'미응답'};
  if(!rule.answers.length)return {status:'review',normalized:null,reason:'정답 기준 없음'};

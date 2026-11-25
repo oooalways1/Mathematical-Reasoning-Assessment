@@ -39,7 +39,8 @@ const perfect=(await ok(submit(A,'alice'))).result;assert.equal(perfect.totalSco
 assert.equal((await ok(submit(A,'alice',{q1:'나 라',q2:'6'}))).result.totalScore,100);
 assert.equal((await ok(submit(A,'alice',{q1:'가, 라',q2:'6'}))).result.totalScore,50);
 assert.equal(api.compare.compareAnswer(base.items[0],'라나').status,'incorrect');assert.equal(api.compare.compareAnswer({...base.items[0],orderMatters:false},'라나').status,'correct');
-for(const [given,key]of [['15','1.5'],['15','-15'],['1 5','15'],['1,5','15']])assert.equal(api.compare.compareAnswer({...base.items[1],answers:[key]},given).status,'incorrect');
+for(const [given,key]of [['15','1.5'],['15','-15'],['1,5','15']])assert.equal(api.compare.compareAnswer({...base.items[1],answers:[key]},given).status,'incorrect');
+assert.equal(api.compare.compareAnswer({...base.items[1],answers:['15']},'1 5').status,'correct');
 const ambiguous=(await ok(submit(A,'alice',{q1:'나?',q2:'6'}))).result;const review=(await ok(api.grading.GET(req('/api/admin/grading?assessmentId='+ambiguous.id,'GET',undefined,'teachera'))));assert.equal(review.reviews.find(r=>r.question_id==='q1').status,'review');
 assert.equal((await api.grading.GET(req('/api/admin/grading?assessmentId='+ambiguous.id,'GET',undefined,'teacherb'))).status,404);
 assert.equal((await api.learning.GET(req('/api/learning?studentId='+students.alice,'GET',undefined,'teacherb'))).status,404);

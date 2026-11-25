@@ -9,7 +9,7 @@ export type PracticeAttempt = { practicePrompt?:string|null;practiceVersion?:num
 export type DiagnosisResult = { pending?:number; comparisonKey?:string; evaluationId?: string | null; evaluationTitle?: string | null; evaluationCode?: string | null; id: string; studentId: string; grade: Grade; totalScore: number; maxScore: number; domains: Record<string, number>; completedAt: string; submissionMethod: 'manual' | 'scan'; keyVersion: string; feedback?: ItemFeedback[] | null; progress?: LearningProgress[]; attempts?: PracticeAttempt[]; legacy?: boolean; answers?: Record<string, unknown>; coachingSummary?: CoachingMessage };
 export type AnswerKey = Record<string, string[]>;
 export function normalizeAnswer(value: string) {
-  return value.normalize('NFKC').trim().toLowerCase().replace(/\s/g, '');
+  return value.normalize('NFKC').toLowerCase().replace(/[\s\u200b-\u200d\u2060\ufeff]+/g, '');
 }
 export function choiceAnswer(value: string) {
   const normalized = normalizeAnswer(value).replace(/^\(([1-4])\)$/, '$1');
