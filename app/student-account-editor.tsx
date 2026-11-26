@@ -52,8 +52,8 @@ export default function StudentAccountEditor({ student }: { student: { id: strin
     {status === 'ready' && <form className="form-stack" onSubmit={submit}>
       <p className="readiness-note">현재 로그인: <strong>{loginId}</strong></p>
       <label>새 아이디 <small>선택</small><input name="newUsername" type="text" maxLength={40} placeholder="예: 민수 또는 1234 · 비워 두면 현재 아이디 유지" autoCapitalize="none" autoCorrect="off" spellCheck={false}/><small>{USERNAME_GUIDE}. 기존 이메일 계정도 아이디 계정으로 바꿀 수 있습니다.</small></label>
-      <label>새 비밀번호<input name="newPassword" type="password" required minLength={6} maxLength={128} autoComplete="new-password" placeholder="최소 6자리"/></label>
-      <label>새 비밀번호 확인<input name="confirmPassword" type="password" required minLength={6} maxLength={128} autoComplete="new-password"/></label>
+      <label>새 비밀번호<input name="newPassword" type="password" required minLength={4} maxLength={128} autoComplete="new-password" placeholder="최소 4자리"/></label>
+      <label>새 비밀번호 확인<input name="confirmPassword" type="password" required minLength={4} maxLength={128} autoComplete="new-password"/></label>
       <label>관리자 비밀번호 확인<input name="teacherPassword" type="password" required maxLength={100} autoComplete="off"/></label>
       <p className="muted">변경 후 학생은 새 정보로 다시 로그인해야 합니다. 학생 기록은 그대로 유지됩니다.</p>
       <button className="button button-primary button-block" disabled={busy}>{busy ? '변경 중…' : '로그인 정보 변경'}</button>

@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   const studentId = typeof body.studentId === 'string' ? body.studentId : '';
   const password = typeof body.password === 'string' ? body.password : '';
   const username = normalizeUsername(body.username);
-  if (!studentId || studentId.length > 100 || password.length < 6 || password.length > 128) return jsonError('학생과 최소 6자리 비밀번호를 확인해 주세요.');
+  if (!studentId || studentId.length > 100 || password.length < 4 || password.length > 128) return jsonError('학생과 최소 4자리 비밀번호를 확인해 주세요.');
   if (username && !USERNAME_PATTERN.test(username)) return jsonError(USERNAME_ERROR);
   try {
     if (!await allowAccountAction(request, 'account-reset', 10)) return jsonError('시도 횟수를 초과했습니다. 15분 후 다시 시도해 주세요.', 429);

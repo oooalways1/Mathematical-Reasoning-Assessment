@@ -1,3 +1,4 @@
+import {firebasePasswordValue} from '../../_passwords';
 import { env } from "cloudflare:workers";
 import { createStudentSession, db, jsonError, privateJson, sameOrigin, sessionCookie } from "../../_lib";
 import { loginEmails, usernameEmail, usernameFromEmail, USERNAME_PATTERN } from "@/lib/student-login";
@@ -13,12 +14,12 @@ export async function POST(request: Request) {
   try { body = await request.json() as typeof body; } catch { return jsonError("로그인 정보를 확인해 주세요."); }
   const emails = loginEmails(body.username ?? body.email),email=emails[0];
   const password = typeof body.password === "string" ? body.password : "";
-  if (!email || !password || password.length > 128) return jsonError("아이디와 비밀번호를 확인해 주세요.");
+  if (!email || password.length < 4 || password.length > 128) return jsonError("아이디와 비밀번호를 확인해 주세요.");
   try {
     if (!await allowAccountAction(request, 'student-login', 1200) || !await allowAccountAction(request, `student-login:${email}`, 20)) return jsonError('로그인 시도가 많습니다. 15분 후 다시 시도해 주세요.', 429);
     let firebase:{localId?:string;idToken?:string;email?:string;displayName?:string}|undefined;
     for(const candidate of emails){
-      const response=await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:candidate,password,returnSecureToken:true})});
+      const response=await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:candidate,password:await firebasePasswordValue(password),returnSecureToken:true})});
       const data=await response.json() as {localId?:string;idToken?:string;email?:string;displayName?:string;error?:{message?:string}};
       if(response.ok&&data.localId){firebase=data;break;}
       if(data.error?.message==='TOO_MANY_ATTEMPTS_TRY_LATER')return jsonError('로그인 요청이 많습니다. 잠시 후 다시 시도해 주세요.',429);

@@ -8,13 +8,13 @@ export async function POST(request:Request){
  if(!sameOrigin(request))return jsonError('잘못된 요청입니다.',403);const actor=await administrator(request);if(!actor)return jsonError('관리자 인증이 필요합니다.',401);if(actor.role!=='super')return jsonError('총괄 관리자만 사용할 수 있습니다.',403);
  let b:Record<string,unknown>;try{b=await request.json();}catch{return jsonError('입력을 확인하세요.');}
  const loginId=typeof b.loginId==='string'?b.loginId.trim().toLowerCase():'';const role=b.role;const schools=Array.isArray(b.schoolIds)?[...new Set(b.schoolIds.filter((id):id is string=>typeof id==='string'))]:[];
- if(!/^[a-z][a-z0-9_]{3,19}$/.test(loginId)||!['super','school'].includes(String(role))||(role==='school'&&!schools.length)||schools.length>100)return jsonError('아이디(영문 시작 4~20자), 역할, 담당 학교를 확인하세요.');
+ if(!/^[a-z0-9_]{4,20}$/.test(loginId)||!['super','school'].includes(String(role))||(role==='school'&&!schools.length)||schools.length>100)return jsonError('아이디(영문·숫자·밑줄 4~20자), 역할, 담당 학교를 확인하세요.');
  let classes:ClassScope[]=[];const mode=b.scopeMode??'school';try{if(!['school','class'].includes(String(mode)))throw Error();classes=mode==='class'?validateClassScopes(b.classes,schools):[];if(mode==='class'&&(!classes.length||role!=='school'))throw Error();}catch{return jsonError('담당 학급을 확인하세요.');}
  try{for(const id of schools)if(!await db().prepare('SELECT id FROM schools WHERE id=? AND active=1').bind(id).first())return jsonError('활성 학교를 선택하세요.');
  if(await db().prepare('SELECT id FROM administrators WHERE login_id=?').bind(loginId).first())return jsonError('사용 중인 관리자 아이디입니다.',409);
  // Existing Firebase UID linking supports an invited Google account without storing passwords.
  let uid:string;if(typeof b.firebaseUid==='string'&&b.firebaseUid.trim()&&b.firebaseUid.length<=128){const user=await lookupFirebaseAccount(b.firebaseUid);if(!user)return jsonError('Firebase 계정이 없습니다.');uid=user.localId;}
- else{if(typeof b.password!=='string'||b.password.length<10||b.password.length>128)return jsonError('임시 비밀번호는 10~128자리로 입력하세요.');uid=await createFirebaseAdministrator(adminEmail(loginId),b.password);}
+ else{if(typeof b.password!=='string'||b.password.length<4||b.password.length>128)return jsonError('임시 비밀번호는 4~128자리로 입력하세요.');uid=await createFirebaseAdministrator(adminEmail(loginId),b.password);}
  const id=crypto.randomUUID();await db().batch([db().prepare('INSERT INTO administrators(id,firebase_uid,login_id,role,created_at) VALUES(?,?,?,?,?)').bind(id,uid,loginId,String(role),new Date().toISOString()),...schools.map(s=>db().prepare('INSERT INTO administrator_schools(admin_id,school_id) VALUES(?,?)').bind(id,s)),db().prepare('INSERT INTO administrator_access(admin_id,mode) VALUES(?,?)').bind(id,String(mode)),...classes.map(c=>db().prepare('INSERT INTO administrator_classes(admin_id,school_id,grade,classroom) VALUES(?,?,?,?)').bind(id,c.schoolId,c.grade,c.classroom))]);await audit(actor,'admin.create',id,null,{role,schoolIds:schools});return privateJson({ok:true,id},{status:201});
  }catch{return jsonError('관리자 생성에 실패했습니다. Firebase와 아이디 중복을 확인하세요.',503);}
 }

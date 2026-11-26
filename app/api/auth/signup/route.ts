@@ -1,3 +1,4 @@
+import {firebasePasswordValue} from '../../_passwords';
 import { env } from "cloudflare:workers";
 import { createStudentSession, db, jsonError, privateJson, sameOrigin, sessionCookie } from "../../_lib";
 import { normalizeUsername, usernameEmail, legacyUsernameEmail, USERNAME_PATTERN, USERNAME_ERROR } from "@/lib/student-login";
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
   if (!name || !Number.isInteger(grade) || grade < 1 || grade > 3) return jsonError("이름과 1~3학년 정보를 입력해 주세요.");
   if (!USERNAME_PATTERN.test(username)) return jsonError(USERNAME_ERROR);
   const email = usernameEmail(username);
-  if (password.length < 6) return jsonError("비밀번호는 최소 6자리로 입력해 주세요.");
+  if (password.length < 4) return jsonError("비밀번호는 최소 4자리로 입력해 주세요.");
   if (password.length > 128) return jsonError("비밀번호가 너무 깁니다. 더 짧게 입력해 주세요.");
   let createdToken: string | undefined;
   let profileSaved = false;
@@ -37,11 +38,11 @@ export async function POST(request: Request) {
     // protected by Firebase's atomic email uniqueness check.
     const reservedEmail=legacyUsernameEmail(username);
     if(email!==reservedEmail&&await lookupFirebaseAccountByEmail(reservedEmail))return jsonError('이미 사용 중인 아이디입니다. 다른 아이디를 입력하거나 로그인해 주세요.',409);
-    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, displayName:username, returnSecureToken: true }) });
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password:await firebasePasswordValue(password), displayName:username, returnSecureToken: true }) });
     const firebase = await response.json() as { localId?: string; idToken?: string; error?: { message?: string } };
     if (!response.ok || !firebase.localId || !firebase.idToken) {
       if (firebase.error?.message === "EMAIL_EXISTS") return jsonError("이미 사용 중인 아이디입니다. 다른 아이디를 입력하거나 로그인해 주세요.", 409);
-      if (firebase.error?.message?.startsWith("WEAK_PASSWORD")) return jsonError("비밀번호는 최소 6자리로 입력해 주세요.");
+      if (firebase.error?.message?.startsWith("WEAK_PASSWORD")) return jsonError("비밀번호는 최소 4자리로 입력해 주세요.");
       if (firebase.error?.message === "OPERATION_NOT_ALLOWED" || firebase.error?.message === "PASSWORD_LOGIN_DISABLED") return jsonError("회원가입 설정이 꺼져 있습니다. 선생님께 문의해 주세요.", 503);
       if (firebase.error?.message === "TOO_MANY_ATTEMPTS_TRY_LATER") return jsonError("요청이 많습니다. 잠시 후 다시 시도해 주세요.", 429);
       return jsonError("회원가입을 완료하지 못했습니다. 입력 정보를 확인해 주세요.");

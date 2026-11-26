@@ -8,8 +8,8 @@ export default function TeacherSignup({onLogin}:{onLogin:()=>void}){
  <h2>교사 가입 신청</h2><p className="muted">학교와 담당 학급을 알려 주세요. 최고관리자가 확인하고 권한을 승인합니다.</p>
  <label>선생님 이름<input required maxLength={40} autoComplete="name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
  <SchoolSelect value={form.schoolId} onChange={schoolId=>setForm({...form,schoolId})}/>
- <label>교사 아이디<input required pattern="[a-z][a-z0-9_]{3,19}" autoComplete="username" value={form.loginId} onChange={e=>setForm({...form,loginId:e.target.value.toLowerCase()})}/><small>영문으로 시작하는 4~20자 · 영문 소문자, 숫자, 밑줄 사용 가능</small></label>
- <label>비밀번호<input required type="password" minLength={10} maxLength={128} autoComplete="new-password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/><small>10자리 이상</small></label>
+ <label>교사 아이디<input required pattern="[a-z0-9_]{4,20}" autoComplete="username" value={form.loginId} onChange={e=>setForm({...form,loginId:e.target.value.toLowerCase()})}/><small>4~20자 · 영문, 숫자, 밑줄 사용 가능 · 숫자만 입력해도 돼요</small></label>
+ <label>비밀번호<input required type="password" minLength={4} maxLength={128} autoComplete="new-password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/><small>4자리 이상</small></label>
  <label>비밀번호 확인<input required type="password" autoComplete="new-password" value={form.confirm} onChange={e=>setForm({...form,confirm:e.target.value})}/></label>
  <label>신청할 담당 범위<select value={form.requestedScope} onChange={e=>setForm({...form,requestedScope:e.target.value})}><option value="class">우리 학급</option><option value="school">학교 전체</option></select></label>
  {form.requestedScope==='class'&&<div className="form-columns"><label>학년<select value={form.grade} onChange={e=>setForm({...form,grade:Number(e.target.value)})}>{[1,2,3].map(g=><option key={g} value={g}>{g}학년</option>)}</select></label><label>반<input required maxLength={30} placeholder="예: 1반" value={form.classroom} onChange={e=>setForm({...form,classroom:e.target.value})}/></label></div>}

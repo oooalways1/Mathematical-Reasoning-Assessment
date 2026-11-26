@@ -1,3 +1,4 @@
+import {firebasePasswordValue} from './_passwords';
 import { env } from 'cloudflare:workers';
 
 type ServiceAccount = { project_id: string; client_email: string; private_key: string };
@@ -70,7 +71,7 @@ export async function updateFirebaseAccount(uid: string, password: string, email
   const token = await firebaseServiceToken();
   const response = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:update', {
     method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ targetProjectId: PROJECT_ID, localId: uid, password, ...(email ? { email } : {}), ...(displayName!==undefined?{displayName}:{}), validSince: String(Math.floor(Date.now() / 1000)) }),
+    body: JSON.stringify({ targetProjectId: PROJECT_ID, localId: uid, password:await firebasePasswordValue(password), ...(email ? { email } : {}), ...(displayName!==undefined?{displayName}:{}), validSince: String(Math.floor(Date.now() / 1000)) }),
   });
   const payload = await response.json() as { localId?: string; error?: { message?: string } };
   if (!response.ok || payload.localId !== uid) {
@@ -80,5 +81,5 @@ export async function updateFirebaseAccount(uid: string, password: string, email
   return 'updated' as const;
 }
 export async function createFirebaseAdministrator(email:string,password:string){
- const token=await firebaseServiceToken();const r=await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts`,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({email,password})});const data=await r.json() as {localId?:string};if(!r.ok||!data.localId)throw new Error('관리자 계정을 생성하지 못했습니다. 아이디 중복 또는 Firebase 설정을 확인하세요.');return data.localId;
+ const token=await firebaseServiceToken();const r=await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts`,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({email,password:await firebasePasswordValue(password)})});const data=await r.json() as {localId?:string};if(!r.ok||!data.localId)throw new Error('관리자 계정을 생성하지 못했습니다. 아이디 중복 또는 Firebase 설정을 확인하세요.');return data.localId;
 }
