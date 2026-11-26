@@ -8,7 +8,6 @@ import type { PortalPage } from './student-portal';
 import LearningJourney from './learning-journey';
 import { evaluationLabel,itemTypeLabel, type PublicEvaluation } from '@/lib/evaluations';
 import MatchingAnswer from './matching-answer';
-import {uploadOriginals,type OriginalUpload} from './assessment-originals';
 import ScanAnswerReview from './scan-answer-review';
 import {isScanAnswerReviewed,scanReviewSummary,type ReviewedAnswers} from '@/lib/scan-review';
 
@@ -25,7 +24,6 @@ export default function Diagnosis({ student, initialGrade, sessionLoading, onNav
   const [files, setFiles] = useState<File[]>([]), [confirmed, setConfirmed] = useState(false);
   const [reviewed,setReviewed]=useState<ReviewedAnswers>({});
   const [result, setResult] = useState<DiagnosisResult | null>(null);
-  const [pendingOriginals,setPendingOriginals]=useState<OriginalUpload[]>([]),[originalNotice,setOriginalNotice]=useState('');
   const abortRef = useRef<AbortController | null>(null), postingRef = useRef(false);
   const items = student ? chosen?.items ?? [] : questionBlueprints[grade];
   const count=items.length;
@@ -80,13 +78,12 @@ export default function Diagnosis({ student, initialGrade, sessionLoading, onNav
     try {
       const response = await fetch('/api/diagnosis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers: Object.fromEntries(items.map(item => [item.id, answers[item.id] ?? ''])), method, formId: chosen?.id, keyVersion: status.keyVersion }) });
       const data = await response.json() as { result: DiagnosisResult; error?: string }; if (!response.ok) throw new Error(data.error || '결과를 저장하지 못했어요.');
-      if(method==='scan'&&files.length){const stored=await uploadOriginals(data.result.id,files.map(file=>({file,id:crypto.randomUUID()})));setPendingOriginals(stored.failed);setOriginalNotice(stored.failed.length?'채점 결과는 저장됐어요. '+stored.error:'답안 원본도 함께 보관했어요.');}
       setResult(data.result);void fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({assessmentId:data.result.id})}).catch(()=>{});
     } catch (error) { setError(error instanceof Error ? error.message : '결과를 저장하지 못했어요.'); }
     finally { postingRef.current = false; setSubmitting(false); }
   }
   if (sessionLoading) return <section className="container diagnosis-content"><p role="status">가입한 학년을 확인하고 있어요.</p></section>;
-  if (result && student) return <section className="container diagnosis-content"><p className="success-message" role="status">채점과 저장이 완료됐어요. 오답 분석부터 다음 배움을 시작해요.</p>{originalNotice&&<p role="status" className={pendingOriginals.length?'alert':'success-message'}>{originalNotice}</p>}{pendingOriginals.length>0&&<button className="button button-outline" disabled={submitting} onClick={async()=>{setSubmitting(true);try{const saved=await uploadOriginals(result.id,pendingOriginals);setPendingOriginals(saved.failed);setOriginalNotice(saved.failed.length?saved.error:'답안 원본도 함께 보관했어요.');}finally{setSubmitting(false);}}}>{submitting?'원본 저장 중…':'저장하지 못한 원본 다시 보관하기'}</button>}<LearningJourney student={student} initialResultId={result.id} onDiagnose={() => { setResult(null);setPendingOriginals([]);setOriginalNotice(''); setAnswers({}); setMethod(null); setScan(null); setReviewed({}); setConfirmed(false); setFiles([]); setRefresh(value=>value+1); }}/></section>;
+  if (result && student) return <section className="container diagnosis-content"><p className="success-message" role="status">채점과 저장이 완료됐어요. 오답 분석부터 다음 배움을 시작해요.</p><LearningJourney student={student} initialResultId={result.id} onDiagnose={() => { setResult(null); setAnswers({}); setMethod(null); setScan(null); setReviewed({}); setConfirmed(false); setFiles([]); setRefresh(value=>value+1); }}/></section>;
   return <section className="container diagnosis-content">
     <div className="page-intro"><p className="eyebrow">진단하기</p><h1>{student ? `${student.name}님의 ${grade}학년 진단` : '우리 학년의 진단을 시작해요.'}</h1><p>{student ? '가입한 학년의 평가를 선택하고, 검사지의 평가 이름과 이름표가 같은지 확인해 주세요.' : '회원가입 또는 로그인하면 가입한 학년으로 진단할 수 있어요.'}</p></div>
     {!student && <><div className="button-row"><button className="button button-primary" onClick={() => onNavigate('login')}>로그인</button><button className="button button-outline" onClick={() => onNavigate('signup')}>회원가입</button></div><fieldset className="grade-grid"><legend>학년별 답안 미리보기</legend>{GRADES.map(value => <label key={value} className={`grade-card ${grade === value ? 'selected' : ''}`}><input type="radio" name="preview-grade" checked={grade === value} onChange={() => { setPreviewGrade(value); setAnswers({}); setScan(null); }}/><strong>{value}학년</strong></label>)}</fieldset></>}
@@ -102,7 +99,7 @@ export default function Diagnosis({ student, initialGrade, sessionLoading, onNav
       <p>문항 번호와 답이 한 줄씩 적힌 답안지를 사용하세요. 예: <b>1: ②</b>, <b>2: 15</b>. 인식한 답을 임시로 채운 뒤, 학생이나 선생님이 원본을 보며 고쳐요.</p>
       <p>손글씨는 틀리게 읽거나 다른 문항에 입력될 수 있어요. 다음 단계에서 모든 문항을 원본과 비교해요.</p>
       <label className="file-picker"><FileUp size={27}/><span>PDF · JPG · PNG 선택</span><input aria-label="답안지 파일 선택" type="file" multiple accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" disabled={busy||submitting} onChange={event=>{setFiles(Array.from(event.target.files??[]));setScan(null);setAnswers({});setReviewed({});setConfirmed(false);setError('');}}/></label>
-      <small>총 20MB 이하 · 최대 8개 파일 / 8쪽 · 무료 OCR · API 키 없이 기기 안에서 인식해요. 채점 제출 후 원본도 비공개로 보관해요. 저장에 실패하면 안내해 드려요.</small>
+      <small>총 20MB 이하 · 최대 8개 파일 / 8쪽 · 무료 OCR · API 키 없이 기기 안에서 인식해요. 원본 파일은 서버에 보관하지 않아요.</small>
       <p>{files.map(file=>file.name).join(', ')}</p><div className="button-row"><button className="button button-primary" disabled={!files.length||busy||submitting} onClick={()=>void recognize()}>{busy?'답안 인식 중…':scan?'파일 다시 인식하기':'파일 읽고 답안칸 채우기'}</button>{busy&&<button className="button button-outline" onClick={()=>abortRef.current?.abort()}>인식 취소</button>}</div>
       {progress&&<p role="status">{progress}</p>}{scan&&<p className="form-note" role="status">{scan.pages}쪽을 읽고 {Object.keys(scan.answers).length}/{count}문항에 임시 답을 채웠어요. 아래에서 모든 문항을 원본과 비교해 주세요.</p>}
     </div>}

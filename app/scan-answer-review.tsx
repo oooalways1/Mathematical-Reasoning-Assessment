@@ -18,7 +18,7 @@ export default function ScanAnswerReview({scan,items,answers,reviewed,disabled,o
         <h3>업로드한 원본</h3>
         <div className="scan-review-tools"><label>쪽 선택<select aria-label="원본 쪽 선택" value={page} onChange={e=>setPage(Number(e.target.value))}>{scan.previews.map((_,index)=><option key={index} value={index}>{index+1}쪽</option>)}</select></label><label>원본 크기<select aria-label="원본 크기" value={zoom} onChange={e=>setZoom(Number(e.target.value))}><option value={100}>기본</option><option value={150}>1.5배 확대</option><option value={200}>2배 확대</option></select></label></div>
         <div className="scan-review-image">{scan.previews.length?<img src={scan.previews[page]??scan.previews[0]} alt={`${page+1}쪽 업로드한 답안지 원본`} style={{width:`${zoom}%`,maxWidth:'none'}}/>:<p>원본 미리보기를 표시할 수 없어요. 가지고 있는 답안지를 보고 확인해 주세요.</p>}</div>
-        <p className="muted">인식과 답안 확인은 기기 안에서 진행해요. 제출 후 원본은 진단 기록에 보관해요. 확대하면 안쪽을 가로·세로로 움직여 볼 수 있어요.</p>
+        <p className="muted">원본은 기기 안에서만 표시해요. 확대하면 안쪽을 가로·세로로 움직여 볼 수 있어요.</p>
         <details><summary>자동 인식한 글자 전체 보기</summary><pre className="ocr-text">{scan.text}</pre></details>
       </aside>
       <div className="scan-review-answers"><div className="scan-review-filter"><h3>학생이 쓴 답</h3><label><input type="checkbox" checked={onlyRemaining} onChange={e=>setOnlyRemaining(e.target.checked)}/>확인할 문항만 보기</label></div>

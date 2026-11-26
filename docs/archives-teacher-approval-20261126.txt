@@ -1,3 +1,8 @@
+CURRENT DECISION — 2026-11-26: USER DECLINED R2.
+Keep teacher signup/approval and school/class permissions. Remove all original-archive UI, auto uploads, retry notices, original-file API routes, and R2 bindings. PDF/image OCR, original comparison and manual correction run on the device; only confirmed answers/results are saved. No storage subscription is requested. Preserve the already-applied migration/tables and all existing records. No additional DB migration is needed.
+
+The implementation notes below describe the previous storage proposal and are historical, not pending instructions.
+
 # 2026-11-26 private originals and teacher approval — not deployed
 
 Production baseline: ffa4c58. Local branch: development/archives-teacher-approval-20261126.
