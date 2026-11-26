@@ -1,6 +1,7 @@
+import {classroomKey} from '@/lib/teacher-scope';
 import { createAccessCode, db, isTeacher, jsonError, privateJson, sameOrigin, studentSessionId } from "../_lib";
 import { activeSchool, schoolAssignment, withSchools } from '../_schools';
-import {administrator,canSchool,canStudent,requestedSchool,schoolFilter,studentSchoolSql,assessmentSchoolSql,audit} from '../_tenancy';
+import {administrator,canSchool,canStudent,requestedSchool,studentAccessFilter,assessmentAccessFilter,audit} from '../_tenancy';
 
 export async function GET(request: Request) {
   const actor=await administrator(request);const teacher=Boolean(actor);
@@ -15,8 +16,8 @@ export async function GET(request: Request) {
         FROM students s WHERE s.id=?`).bind(studentId).first<{id:string}>();
       return privateJson({ students: student ? await withSchools([student]) : [], role: student ? "student" : "guest" });
     }
-    const filter=schoolFilter(actor!,requestedSchool(request,actor!),studentSchoolSql());
-    const scopeAssessment=schoolFilter(actor!,requestedSchool(request,actor!),assessmentSchoolSql());
+    const filter=studentAccessFilter(actor!,requestedSchool(request,actor!));
+    const scopeAssessment=assessmentAccessFilter(actor!,requestedSchool(request,actor!));
     const [studentRows, statsRow] = await Promise.all([
       database.prepare(`
       SELECT s.id, s.name, s.grade, s.classroom, s.access_code AS accessCode, s.created_at AS createdAt,
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
   try {
     const school = await activeSchool(body.schoolId);
     if (!school) return jsonError('목록에서 가입 가능한 학교를 선택해 주세요.');
-    if(!canSchool(actor,school.id))return jsonError('담당 학교만 등록할 수 있습니다.',403);
+    if(!canSchool(actor,school.id)||(actor.role!=='super'&&actor.scopeMode==='class'&&!actor.classes?.some(c=>c.schoolId===school.id&&c.grade===grade&&c.classroom===classroomKey(classroom))))return jsonError('담당 학교만 등록할 수 있습니다.',403);
     await db().batch([
       db().prepare("INSERT INTO students (id, name, grade, classroom, access_code) VALUES (?, ?, ?, ?, ?)").bind(id, name, grade, classroom, accessCode),
       schoolAssignment(id,school.id),

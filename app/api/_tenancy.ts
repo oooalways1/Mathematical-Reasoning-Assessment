@@ -1,5 +1,7 @@
+import {teacherSchema} from './_teacher-schema';
+import {classroomKey,classroomSql,type ClassScope} from '@/lib/teacher-scope';
 import {db, legacyTeacher, signSession, verifySession, readCookie} from './_lib';
-export type Admin = {id:string;role:'super'|'school';schools:string[];legacy?:boolean};
+export type Admin = {id:string;role:'super'|'school';schools:string[];scopeMode?:'school'|'class';classes?:ClassScope[];legacy?:boolean};
 export const tenancySchema=[
  `CREATE TABLE IF NOT EXISTS administrators(id TEXT PRIMARY KEY,firebase_uid TEXT NOT NULL UNIQUE,login_id TEXT NOT NULL UNIQUE,role TEXT NOT NULL CHECK(role IN ('super','school')),active INTEGER NOT NULL DEFAULT 1,session_version INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL)`,
  `CREATE TABLE IF NOT EXISTS administrator_schools(admin_id TEXT NOT NULL REFERENCES administrators(id),school_id TEXT NOT NULL REFERENCES schools(id),PRIMARY KEY(admin_id,school_id))`,
@@ -18,7 +20,7 @@ export const tenancySchema=[
 ];
 let ready:Promise<void>|undefined;
 export async function ensureTenancy(){
- if(!ready)ready=(async()=>{await db().batch(tenancySchema.map(q=>db().prepare(q)));})();
+ if(!ready)ready=(async()=>{await db().batch([...tenancySchema,...teacherSchema].map(q=>db().prepare(q)));})();
  try{await ready;}catch(e){ready=undefined;throw e;}
 }
 export async function administrator(request:Request):Promise<Admin|null>{
@@ -26,8 +28,8 @@ export async function administrator(request:Request):Promise<Admin|null>{
  const token=readCookie(request,'admin_session');
  if(token){const [id,version,expiry,signature,extra]=token.split('.');
   if(extra===undefined&&id&&/^\d+$/.test(version??'')&&/^\d+$/.test(expiry??'')&&Number(expiry)>Date.now()&&await verifySession(`admin.${id}.${version}.${expiry}`,signature??'')){
-   const row=await db().prepare('SELECT id,role FROM administrators WHERE id=? AND active=1 AND session_version=?').bind(id,Number(version)).first<{id:string;role:Admin['role']}>();
-   if(row){const schools=await db().prepare('SELECT m.school_id AS id FROM administrator_schools m JOIN schools s ON s.id=m.school_id WHERE m.admin_id=? AND s.active=1').bind(id).all<{id:string}>();return {...row,schools:schools.results.map(s=>s.id)};}
+   const row=await db().prepare("SELECT id,role FROM administrators WHERE id=? AND active=1 AND session_version=? AND NOT EXISTS(SELECT 1 FROM teacher_applications t WHERE t.admin_id=administrators.id AND t.status<>'approved')").bind(id,Number(version)).first<{id:string;role:Admin['role']}>();
+   if(row){const schools=await db().prepare('SELECT m.school_id AS id FROM administrator_schools m JOIN schools s ON s.id=m.school_id WHERE m.admin_id=? AND s.active=1').bind(id).all<{id:string}>();const access=await db().prepare('SELECT mode FROM administrator_access WHERE admin_id=?').bind(id).first<{mode:'school'|'class'}>();const classes=await db().prepare('SELECT school_id AS schoolId,grade,classroom FROM administrator_classes WHERE admin_id=?').bind(id).all<ClassScope>();return {...row,schools:schools.results.map(s=>s.id),scopeMode:access?.mode??'school',classes:classes.results};}
   }
   return null;
  }
@@ -41,7 +43,11 @@ export function schoolFilter(admin:Admin,selected:string|null,expression:string)
 export const studentSchoolSql=(alias='s')=>`(SELECT school_id FROM student_schools WHERE student_id=${alias}.id)`;
 export const assessmentSchoolSql=(alias='a')=>`CASE WHEN EXISTS(SELECT 1 FROM assessment_schools z WHERE z.assessment_id=${alias}.id) THEN (SELECT school_id FROM assessment_schools z WHERE z.assessment_id=${alias}.id) ELSE (SELECT school_id FROM student_schools WHERE student_id=${alias}.student_id) END`;
 export async function studentSchool(id:string){return (await db().prepare('SELECT school_id FROM student_schools WHERE student_id=?').bind(id).first<{school_id:string}>())?.school_id??null;}
-export async function canStudent(admin:Admin,id:string){const row=await db().prepare('SELECT s.id,ss.school_id FROM students s LEFT JOIN student_schools ss ON ss.student_id=s.id WHERE s.id=?').bind(id).first<{id:string;school_id:string|null}>();return !!row&&canSchool(admin,row.school_id);}
+export async function canStudent(admin:Admin,id:string){const row=await db().prepare('SELECT s.id,s.grade,s.classroom,ss.school_id FROM students s LEFT JOIN student_schools ss ON ss.student_id=s.id WHERE s.id=?').bind(id).first<{id:string;grade:number;classroom:string;school_id:string|null}>();return !!row&&canSchool(admin,row.school_id)&&(admin.role==='super'||admin.scopeMode!=='class'||Boolean(admin.classes?.some(c=>c.schoolId===row.school_id&&c.grade===row.grade&&c.classroom===classroomKey(row.classroom))));}
 export async function assessmentSchool(id:string){const row=await db().prepare('SELECT school_id FROM assessment_schools WHERE assessment_id=?').bind(id).first<{school_id:string|null}>();if(row)return row.school_id;return (await db().prepare('SELECT ss.school_id FROM assessments a LEFT JOIN student_schools ss ON ss.student_id=a.student_id WHERE a.id=?').bind(id).first<{school_id:string|null}>())?.school_id??null;}
-export async function canAssessment(admin:Admin,id:string){return canSchool(admin,await assessmentSchool(id));}
+export async function canAssessment(admin:Admin,id:string){const row=await db().prepare('SELECT student_id FROM assessments WHERE id=?').bind(id).first<{student_id:string}>();return !!row&&canSchool(admin,await assessmentSchool(id))&&(admin.role==='super'||admin.scopeMode!=='class'||await canStudent(admin,row.student_id));}
 export async function audit(admin:Admin,action:string,target:string,schoolId:string|null,details:Record<string,unknown>={}){await db().prepare('INSERT INTO audit_log(id,actor_id,action,school_id,target_id,details,created_at) VALUES(?,?,?,?,?,?,?)').bind(crypto.randomUUID(),admin.id,action,schoolId,target,JSON.stringify(details),new Date().toISOString()).run();}
+
+export function canManageSchool(admin:Admin,schoolId:string|null){return canSchool(admin,schoolId)&&(admin.role==='super'||admin.scopeMode!=='class');}
+export function studentAccessFilter(admin:Admin,selected:string|null,alias='s'){const school=schoolFilter(admin,selected,studentSchoolSql(alias));if(admin.role==='super'||admin.scopeMode!=='class')return school;return {sql:school.sql+' AND EXISTS(SELECT 1 FROM administrator_classes acl WHERE acl.admin_id=? AND acl.school_id='+studentSchoolSql(alias)+' AND acl.grade='+alias+'.grade AND acl.classroom='+classroomSql(alias+'.classroom')+')',values:[...school.values,admin.id]};}
+export function assessmentAccessFilter(admin:Admin,selected:string|null,alias='a'){const school=schoolFilter(admin,selected,assessmentSchoolSql(alias));if(admin.role==='super'||admin.scopeMode!=='class')return school;return {sql:school.sql+' AND EXISTS(SELECT 1 FROM students scoped JOIN student_schools ss ON ss.student_id=scoped.id JOIN administrator_classes acl ON acl.school_id=ss.school_id JOIN schools current_school ON current_school.id=ss.school_id AND current_school.active=1 WHERE scoped.id='+alias+'.student_id AND acl.admin_id=? AND acl.grade=scoped.grade AND acl.classroom='+classroomSql('scoped.classroom')+')',values:[...school.values,admin.id]};}

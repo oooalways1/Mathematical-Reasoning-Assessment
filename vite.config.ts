@@ -74,6 +74,8 @@ export default defineConfig(async ({ command }) => {
         inspectorPort: false,
         config: {
           ...localBindingConfig,
+          // Local R2 is emulated. Production storage is explicit and never shared with previews.
+          r2_buckets: command==='serve'?[{binding:'BUCKET',bucket_name:'numeracy-originals-local'}]:process.env.NUMERACY_ORIGINALS_BUCKET?[{binding:'BUCKET',bucket_name:deployment.preview?'numeracy-validation-originals':'numeracy-answer-originals'}]:[],
           ...(enableAi ? {ai:{binding:'AI'},vars:{AI_ENABLED:'true',AI_FREE_PLAN_CONFIRMED:'true'}} : {}),
           // Own-account deployments use the real D1 database. Keep the local
           // preview binding above so existing preview records stay available.

@@ -7,6 +7,7 @@ import { GRADES, isGrade, type Grade } from "@/lib/diagnosis-blueprint";
 import StudentPortal, { type PortalPage } from "./student-portal";
 import type { StudentProfile } from '@/lib/diagnosis-model';
 import AnswerKeyEditor from './answer-key-editor';
+import TeacherSignup from './teacher-signup';
 import AdminManagement,{AdminScope} from './admin-management';
 import LearningJourney from './learning-journey';
 import FeedbackLibrary from './feedback-library';
@@ -41,6 +42,7 @@ export default function Home() {
   const [stats, setStats] = useState(initialStats);
   const [error, setError] = useState("");
   const [adminNotice, setAdminNotice] = useState("");
+  const [showTeacherSignup,setShowTeacherSignup]=useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [pin, setPin] = useState("");const [adminUsername,setAdminUsername]=useState(''),[scopeRevision,setScopeRevision]=useState(0);
@@ -171,15 +173,17 @@ export default function Home() {
       onRefresh={() => void loadAdmin()}/></>}
 
     <footer className="site-footer"><div className="container">
-      <nav className="footer-nav" aria-label="교사 관리"><button className={`admin-tab ${showAdmin ? "active" : ""}`} onClick={openAdmin}><Settings2 size={19}/> 관리페이지</button></nav>
+      <nav className="footer-nav" aria-label="교사 관리"><button className={`admin-tab ${showAdmin ? "active" : ""}`} onClick={openAdmin}><Settings2 size={19}/> 교사 로그인 · 관리페이지</button><button className="admin-tab" onClick={()=>{setShowLogin(false);setShowTeacherSignup(true);}}>교사 가입 신청</button></nav>
     </div></footer>
 
+    {showTeacherSignup&&<Modal title="교사 가입 신청" onClose={()=>setShowTeacherSignup(false)}><TeacherSignup onLogin={()=>{setShowTeacherSignup(false);setShowLogin(true);}}/></Modal>}
     {showLogin && <Modal title="교사 관리페이지" onClose={() => { setShowLogin(false); setPin(""); }}>
       <span className="modal-icon"><LockKeyhole size={27}/></span><h2>교사 관리페이지</h2>
       <p className="muted">개인 관리자 아이디와 비밀번호로 로그인하세요. 이전 공용 로그인은 아이디를 비워 두세요.</p><form onSubmit={(event) => void login(event)} className="form-stack">
         <label>관리자 아이디<input autoComplete="username" value={adminUsername} onChange={e=>setAdminUsername(e.target.value)} placeholder="이전 공용 로그인은 빈칸"/></label><label htmlFor="teacher-pin">비밀번호<input id="teacher-pin" type="password" required autoComplete="current-password" autoFocus value={pin} onChange={(event) => setPin(event.target.value)} placeholder="비밀번호 입력"/></label>
         <button className="button button-primary button-block" disabled={loggingIn}>{loggingIn ? "확인 중…" : "관리페이지 들어가기"} <ArrowRight size={19}/></button>
       </form>
+      <button className="button button-outline button-block" onClick={()=>{setShowLogin(false);setPin('');setShowTeacherSignup(true);}}>처음 오셨나요? 교사 가입 신청</button>
       {loginError && <p role="alert" className="alert">{loginError}</p>}
     </Modal>}
 
@@ -223,6 +227,7 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
   students: Student[]; results: Result[]; stats: typeof initialStats; error: string;
   onAdd: () => void; onExport: () => void; onLogout: () => void; onRefresh: () => void;
 }) {
+  const [actor,setActor]=useState<{role:string;scopeMode?:string}|null>(null);useEffect(()=>{fetch('/api/admin/session').then(r=>r.json() as Promise<{admin?:{role:string;scopeMode?:string}}>).then(d=>setActor(d.admin??null)).catch(()=>{});},[]);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"overview" | "students" | "records" | "keys" | "feedback" | "schools" | "administrators">("overview");
   const [selectedId, setSelectedId] = useState("");
@@ -249,7 +254,7 @@ function AdminPanel({ students, results, stats, error, onAdd, onExport, onLogout
       <div className="button-row"><button className="button button-outline" onClick={onRefresh}>새로고침</button><button className="button button-outline" onClick={onLogout}><LogOut size={18}/> 로그아웃</button></div>
     </div>
     {error && <p role="alert" className="alert">{error}</p>}
-    <nav className="admin-tabs" aria-label="관리 메뉴">{([["overview", "한눈에 보기"], ["students", "학생 관리"], ["schools", "학교 관리"], ["records", "진단 기록"], ["keys", "정답 설정"], ["feedback", "피드백 자료"], ["administrators", "관리자·AI 사용량"]] as const).map(([id, label]) =>
+    <nav className="admin-tabs" aria-label="관리 메뉴">{([["overview", "한눈에 보기"], ["students", "학생 관리"], ["schools", "학교 관리"], ["records", "진단 기록"], ["keys", "정답 설정"], ["feedback", "피드백 자료"], ["administrators", "관리자·AI 사용량"]] as const).filter(([id])=>id==='administrators'||id==='schools'?actor?.role==='super':id==='keys'?Boolean(actor&&(actor.role==='super'||actor.scopeMode!=='class')):true).map(([id, label]) =>
       <button key={id} aria-current={!detail && tab === id ? "page" : undefined} className={!detail && tab === id ? "active" : ""} onClick={() => { setTab(id); setDetail(null); }}>{label}</button>)}</nav>
 
     {!detail && tab === "overview" && <>

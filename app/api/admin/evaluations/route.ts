@@ -1,7 +1,7 @@
 import { db,isTeacher,jsonError,privateJson,sameOrigin } from '../../_lib';
 import { ensureEvaluations,listEvaluations,getEvaluation } from '../../_evaluations';
 import { validateEvaluation } from '@/lib/evaluations';
-import {administrator,canSchool,requestedSchool,audit} from '../../_tenancy';
+import {administrator,canSchool,canManageSchool,requestedSchool,audit} from '../../_tenancy';
 export async function GET(request:Request){const actor=await administrator(request);if(!actor)return jsonError('교사 인증이 필요합니다.',401);try{const school=requestedSchool(request,actor),all=await listEvaluations(undefined,false,true);return privateJson({evaluations:all.filter(f=>canSchool(actor,f.schoolId??null)&&(!school||f.schoolId===school)),templates:all.filter(f=>!f.schoolId&&!f.trashed),admin:actor});}catch{return jsonError('평가 목록을 불러오지 못했습니다.',503);}}
 async function save(request:Request,creating:boolean){
   if(!sameOrigin(request))return jsonError('잘못된 요청입니다.',403);
@@ -18,7 +18,7 @@ async function save(request:Request,creating:boolean){
     const current=creating?null:typeof body.id==='string'?await getEvaluation(body.id):null;
     if(!creating&&!current)return jsonError('평가를 찾지 못했습니다.',404);
     const schoolId=current?.schoolId??(typeof body.schoolId==='string'&&body.schoolId?body.schoolId:requestedSchool(request,actor));
-    if(!canSchool(actor,current?current.schoolId??null:schoolId)||current&&body.schoolId!==undefined&&body.schoolId!==current.schoolId)return jsonError('담당 학교의 평가만 수정할 수 있습니다.',403);
+    if(!canManageSchool(actor,current?current.schoolId??null:schoolId)||current&&body.schoolId!==undefined&&body.schoolId!==current.schoolId)return jsonError('담당 학교의 평가만 수정할 수 있습니다.',403);
     if(schoolId&&!await db().prepare('SELECT id FROM schools WHERE id=? AND active=1').bind(schoolId).first())return jsonError('활성 학교를 선택하세요.');
     if(current?.trashed)return jsonError('삭제된 평가입니다. 먼저 복구한 뒤 수정해 주세요.',409);
     if(current&&current.version!==body.expectedVersion)return jsonError('다른 곳에서 변경됐습니다. 목록을 새로 불러온 뒤 수정해 주세요.',409);
@@ -42,7 +42,7 @@ async function trash(request:Request,restore:boolean){
   if(typeof body.id!=='string'||typeof body.expectedVersion!=='string')return jsonError('평가 정보를 확인해 주세요.');
   try{
     const current=await getEvaluation(body.id);if(!current)return jsonError('평가를 찾지 못했습니다.',404);
-    if(!canSchool(actor,current.schoolId??null))return jsonError('평가를 찾지 못했습니다.',404);
+    if(!canManageSchool(actor,current.schoolId??null))return jsonError('평가를 찾지 못했습니다.',404);
     if(current.version!==body.expectedVersion)return jsonError('평가가 변경됐습니다. 새로고침 후 다시 시도해 주세요.',409);
     const now=new Date().toISOString();
     if(!restore){

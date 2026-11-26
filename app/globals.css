@@ -354,3 +354,6 @@ svg { flex-shrink: 0; }
   *, *::before, *::after { transition: none !important; }
 }
 
+
+/* Private originals and teacher approval */
+.original-archive{margin:18px 0;padding:20px}.original-archive summary{cursor:pointer;font-weight:700;color:var(--primary,#2563eb)}.original-archive[open] summary{margin-bottom:16px}.original-list{list-style:none;padding:0;margin:0}.original-list li{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;border-bottom:1px solid #dce6f3;overflow-wrap:anywhere}.original-list small{display:block;color:#67809d;margin-top:6px}.teacher-approval{padding:20px;margin-bottom:28px}.approval-card{padding:20px;margin-top:16px;border:1px solid #dce6f3;border-radius:14px;display:grid;gap:14px}.approval-card h3,.approval-card p{margin:0}.approval-card label{display:grid;gap:8px}.original-archive input[type=file]{max-width:100%}@media(max-width:680px){.original-list li{align-items:stretch;flex-direction:column}.original-list .button-row{flex-wrap:wrap}.teacher-approval{padding:14px}.approval-card{padding:14px}}

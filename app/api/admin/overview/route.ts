@@ -1,13 +1,13 @@
 import { db, isTeacher, jsonError, privateJson } from "../../_lib";
 import { withSchools } from '../../_schools';
 import {ensureEvaluations} from '../../_evaluations';
-import {administrator,requestedSchool,schoolFilter,studentSchoolSql,assessmentSchoolSql} from '../../_tenancy';
+import {administrator,requestedSchool,studentAccessFilter,assessmentAccessFilter} from '../../_tenancy';
 
 export async function GET(request: Request) {
   const admin=await administrator(request);if(!admin)return jsonError('교사 인증이 필요합니다.',401);
   try {
     await ensureEvaluations();
-    const selected=requestedSchool(request,admin),sf=schoolFilter(admin,selected,studentSchoolSql()),af=schoolFilter(admin,selected,assessmentSchoolSql());
+    const selected=requestedSchool(request,admin),sf=studentAccessFilter(admin,selected),af=assessmentAccessFilter(admin,selected);
     const database = db();
     const [studentRows, assessmentRows, statsRow] = await Promise.all([
       database.prepare(`SELECT s.id, s.name, s.grade, s.classroom, s.access_code AS accessCode, s.created_at AS createdAt,

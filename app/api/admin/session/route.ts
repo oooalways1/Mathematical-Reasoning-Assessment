@@ -24,8 +24,8 @@ export async function POST(request: Request) {
   if(typeof body.username==='string'||typeof body.idToken==='string'){
    if(typeof body.username==='string'&&body.username.length>150||typeof body.idToken==='string'&&body.idToken.length>10000)return jsonError('로그인 정보를 확인해 주세요.');
    try{const uid=typeof body.idToken==='string'?await firebaseIdentity(body.idToken):await firebasePassword(adminEmail(String(body.username).trim()),String(body.password));
-    const row=uid?await db().prepare('SELECT id,session_version FROM administrators WHERE firebase_uid=? AND active=1').bind(uid).first<{id:string;session_version:number}>():null;
-    if(!row)return jsonError('관리자 아이디와 비밀번호 또는 계정 활성 상태를 확인해 주세요.',401);
+    const row=uid?await db().prepare("SELECT id,session_version FROM administrators WHERE firebase_uid=? AND active=1 AND NOT EXISTS(SELECT 1 FROM teacher_applications t WHERE t.admin_id=administrators.id AND t.status<>'approved')").bind(uid).first<{id:string;session_version:number}>():null;
+    if(!row){if(uid){const application=await db().prepare('SELECT t.status,t.reason FROM teacher_applications t JOIN administrators a ON a.id=t.admin_id WHERE a.firebase_uid=?').bind(uid).first<{status:string;reason:string}>();if(application&&application.status!=='approved')return jsonError(application.status==='pending'?'가입 신청이 접수되어 최고관리자 승인을 기다리고 있습니다.':'가입 신청이 승인되지 않았습니다. 관리자에게 문의해 주세요.',403);}return jsonError('관리자 아이디와 비밀번호 또는 계정 활성 상태를 확인해 주세요.',401);}
     const token=await adminToken(row.id,row.session_version);const response=privateJson({ok:true},{headers:{'Set-Cookie':sessionCookie(token,28800,'admin_session')}});
     await audit({id:row.id,role:'school',schools:[]},'admin.login',row.id,null);return response;
    }catch{return jsonError('관리자 인증 서비스를 확인하지 못했습니다.',503);}

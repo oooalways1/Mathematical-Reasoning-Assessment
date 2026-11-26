@@ -6,7 +6,7 @@ import type { DiagnosisResult, ItemFeedback, LearningProgress, PracticeAttempt }
 import type { CoachingMessage } from '@/lib/feedback-types';
 import { diagnosticCoaching, practiceCoaching, skillForFeedback, summarizeLearning } from '@/lib/adaptive-feedback';
 import type { Grade } from '@/lib/diagnosis-blueprint';
-import {type Admin,schoolFilter,assessmentSchoolSql} from '../_tenancy';
+import {type Admin,assessmentAccessFilter} from '../_tenancy';
 type AssessmentRow = { criteriaDefinition?:string; comparisonKey?:string; evaluationId:string|null; evaluationTitle:string|null; evaluationCode:string|null; id:string; studentId:string; grade:Grade; legacy:number; totalScore:number; maxScore:number; domains:string; answers:string; feedback:string|null; completedAt:string; submissionMethod:DiagnosisResult['submissionMethod']|null; keyVersion:string|null };
 
 export async function readLearning(studentId: string, teacher: boolean,admin?:Admin) {
@@ -14,7 +14,7 @@ export async function readLearning(studentId: string, teacher: boolean,admin?:Ad
   const database = db();
   const extras=await database.prepare('SELECT g.assessment_id,g.question_id,g.status,g.normalized_answer,o.practice,o.roadmap_note FROM grading_reviews g LEFT JOIN learning_overrides o ON o.assessment_id=g.assessment_id AND o.question_id=g.question_id JOIN assessments a ON a.id=g.assessment_id WHERE a.student_id=?').bind(studentId).all<{assessment_id:string;question_id:string;status:'correct'|'incorrect'|'review';normalized_answer:string|null;practice:string|null;roadmap_note:string|null}>();
   const materials=await database.prepare('SELECT o.* FROM learning_overrides o JOIN assessments a ON a.id=o.assessment_id WHERE a.student_id=?').bind(studentId).all<{assessment_id:string;question_id:string;practice:string|null;roadmap_note:string}>();
-  const filter=admin?schoolFilter(admin,null,assessmentSchoolSql()):{sql:'1=1',values:[]};
+  const filter=admin?assessmentAccessFilter(admin,null):{sql:'1=1',values:[]};
   const [records, progress, attempts] = await Promise.all([
     database.prepare(`SELECT a.id, a.student_id AS studentId, COALESCE(a.grade,s.grade) AS grade, a.grade IS NULL AS legacy,
       a.total_score AS totalScore, a.max_score AS maxScore, a.domains, a.answers, a.feedback,

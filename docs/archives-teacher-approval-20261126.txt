@@ -1,0 +1,25 @@
+# 2026-11-26 private originals and teacher approval — not deployed
+
+Production baseline: ffa4c58. Local branch: development/archives-teacher-approval-20261126.
+
+Implemented and verified:
+- Public teacher signup from footer/login dialog. Firebase authenticates teachers; D1 stores no passwords. New accounts are inactive until highest-admin approval. Pending/rejected accounts cannot access student data, even if accidentally marked active.
+- Highest-admin approval grants full-school or specified grade/class access atomically, logs the decision and invalidates old sessions. Approved accounts can later receive up to 30 class assignments. Class-only teachers cannot change shared school evaluation definitions.
+- PDF/JPG/PNG originals accumulate privately per assessment. Every list/open/download verifies student ownership or approved teacher scope. No public object URLs. Failed original uploads can be retried without grading again; old records allow reattachment.
+- Limits: upload selection 8 files/20 MiB total; server 20 MiB/file, 80 files/assessment, 200 MiB/student, 8 GiB/application including reservations. These limits do not guarantee zero account-wide Cloudflare operation charges. No automatic deletion. Historical local-only OCR files cannot be recovered automatically.
+
+Validation passed:
+TypeScript; production build; originals/teacher integration; existing school integration including 50 concurrent in-memory submissions; school management; evaluation versioning; scan review; 323 whitespace-grading checks. Browser confirmed teacher application, approval, opening a real handwriting PDF, and appending the same record's archive from 4 to 5 files. Tests used synthetic in-memory identities, zero production writes.
+
+Production steps requiring final approval:
+1. User completes R2 activation. Dashboard shows $0 due now, included monthly usage, automatic renewal, Terms/Privacy agreement and usage-based overages. R2 is currently disabled (10042). Subscription transaction was not clicked.
+2. Create private Standard bucket numeracy-answer-originals. Keep public r2.dev/custom domains disabled. Previews use numeracy-validation-originals, never the production bucket.
+3. Back up D1, then apply drizzle/0011_teacher_original_archives.sql. Four new tables/indexes only (administrator_access, administrator_classes, teacher_applications, assessment_files); no existing rows/columns are removed. Migration idempotency and foreign keys verified. Runtime initialization is additive too.
+4. Set Cloudflare BUILD variable NUMERACY_ORIGINALS_BUCKET=numeracy-answer-originals. This generates the BUCKET binding. Runtime variables alone do not change generated bindings. Without it, originals show unavailable while grading/history remain usable. Existing Firebase config/secrets remain unchanged.
+5. After explicit user deployment approval, push reviewed commit to main, await successful Cloudflare rollout and verify live flows. No remote push/deploy has occurred.
+
+Recovery:
+Keep D1 metadata and R2 objects together. Upload reservations count toward quota. If a Worker terminates mid-upload, verify the reservation is stale and remove its exact object before removing metadata. Never remove an assessment to retry an upload.
+Before reverting to a version without class-scope support, disable all class-scoped administrators and increment session_version; old code would otherwise treat them as school-wide administrators. Retain the added tables and originals; no destructive down migration.
+
+Existing tooling limitation: drizzle/meta/0010_snapshot.json was already an empty object, so drizzle-kit generate reports that previous snapshot as malformed. Migration 0011 is deliberately authored as additive SQL and verified against SQLite. Old migration metadata was not rewritten.

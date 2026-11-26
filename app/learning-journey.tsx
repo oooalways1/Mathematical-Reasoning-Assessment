@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowRight, BookOpenCheck, Check, ClipboardList, Printer, TrendingUp } from 'lucide-react';
 import {sameEvaluationCriteria} from '@/lib/evaluation-comparison';
 import type { DiagnosisResult, ItemFeedback, LearningProgress } from '@/lib/diagnosis-model';
+import AssessmentOriginals from './assessment-originals';
 import GradingReview from './grading-review';
 import DomainRadar from './domain-radar';
 import AiFeedbackPanel from './ai-feedback-panel';
@@ -41,6 +42,7 @@ export default function LearningJourney({ student, teacher = false, initialResul
     <div className="section-heading"><div><p className="eyebrow">{teacher ? '학생 상세 · 교사 보기' : '나의 학습'}</p><h1>{student.name}님의 배움 기록</h1><p className="muted">{student.schoolName ?? "학교 미지정"} {student.schoolRegion && `(${student.schoolRegion})`} · {student.grade}학년 {student.classroom} · 진단에서 다음 배움까지, 한 걸음씩 이어 가요.</p></div><div className="button-row"><button className="button button-outline" onClick={() => setRefresh(value => value+1)}>새로고침</button>{onDiagnose && <button className="button button-primary" onClick={onDiagnose}>새 진단 시작 <ArrowRight size={18}/></button>}</div></div>
     <div className="journey-groups" aria-hidden="true"><span>진단</span><span>분석</span><span>학습 지원</span><span>학습 관리</span></div>
     <nav className="journey-tabs" aria-label="진단 이후 학습 메뉴">{menus.map(([id,label]) => <button key={id} aria-current={tab === id ? 'page' : undefined} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>)}</nav>
+    {!loading&&result&&<AssessmentOriginals key={result.id} assessmentId={result.id} assessmentLabel={evaluationName(result)+' · '+date(result.completedAt)}/>}
     {loading && <p role="status">배움 기록을 불러오고 있어요.</p>}
     {error && <p className="alert" role="alert">{error}</p>}
     {!loading && !error && !results.length && <div className="panel results-empty"><ClipboardList size={36}/><h2>아직 저장된 진단이 없어요.</h2><p>답안을 제출하면 분석과 학습 로드맵이 만들어져요.</p>{onDiagnose && <button className="button button-primary" onClick={onDiagnose}>첫 진단 시작하기</button>}</div>}

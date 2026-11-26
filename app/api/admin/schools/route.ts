@@ -1,12 +1,12 @@
 import { db, isTeacher, jsonError, privateJson, sameOrigin } from '../../_lib';
 import { ensureSchools } from '../../_schools';
-import {administrator,audit,schoolFilter} from '../../_tenancy';
+import {administrator,audit,schoolFilter,studentAccessFilter} from '../../_tenancy';
 
 export async function GET(request: Request) {
   const actor=await administrator(request);if(!actor)return jsonError('교사 인증이 필요합니다.',401);
   try {
     await ensureSchools();
-    const filter=schoolFilter(actor,null,'s.id');const rows = await db().prepare(`SELECT s.id,s.name,s.region,s.active,(SELECT COUNT(*) FROM student_schools ss WHERE ss.school_id=s.id) AS studentCount FROM schools s WHERE ${filter.sql} ORDER BY s.active DESC,s.name,s.region`).bind(...filter.values).all();
+    const filter=schoolFilter(actor,null,'s.id'),students=studentAccessFilter(actor,null,'p');const rows = await db().prepare(`SELECT s.id,s.name,s.region,s.active,(SELECT COUNT(*) FROM students p JOIN student_schools ss ON ss.student_id=p.id WHERE ss.school_id=s.id AND ${students.sql}) AS studentCount FROM schools s WHERE ${filter.sql} ORDER BY s.active DESC,s.name,s.region`).bind(...students.values,...filter.values).all();
     return privateJson({schools: rows.results});
   } catch { return jsonError('학교 목록을 불러오지 못했습니다.',503); }
 }
