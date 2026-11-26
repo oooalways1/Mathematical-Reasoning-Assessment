@@ -23,3 +23,5 @@ Keep D1 metadata and R2 objects together. Upload reservations count toward quota
 Before reverting to a version without class-scope support, disable all class-scoped administrators and increment session_version; old code would otherwise treat them as school-wide administrators. Retain the added tables and originals; no destructive down migration.
 
 Existing tooling limitation: drizzle/meta/0010_snapshot.json was already an empty object, so drizzle-kit generate reports that previous snapshot as malformed. Migration 0011 is deliberately authored as additive SQL and verified against SQLite. Old migration metadata was not rewritten.
+
+Follow-up: signup now has an explicit "교사로 가입하기" callout above the student form, opening the teacher approval application. Every student diagnosis history card now has "내가 올린 파일 보기", selecting that record and expanding/scolling to its original archive. Teacher history uses "학생이 올린 파일 보기". No changes to authentication or production deployment.

@@ -167,7 +167,7 @@ export default function Home() {
       <div className="header-account">{studentProfile ? <><span className="signed-student">{studentProfile.schoolName ?? "학교 미지정"} · {studentProfile.name} · {studentProfile.grade}학년</span><button className="header-login" onClick={() => void studentLogout()}>로그아웃</button></> : <><button className="header-login" aria-current={!showAdmin && page === "login" ? "page" : undefined} onClick={() => navigate("login")}>로그인</button><button className="button button-primary" aria-current={!showAdmin && page === "signup" ? "page" : undefined} onClick={() => navigate("signup")}>회원가입</button></>}</div>
     </div></header>
 
-    {!showAdmin && <StudentPortal page={page} initialGrade={initialGrade} onNavigate={navigate} onGradeChange={setInitialGrade} onAuthenticated={authenticated} student={studentProfile} sessionLoading={sessionLoading}/>}
+    {!showAdmin && <StudentPortal page={page} initialGrade={initialGrade} onNavigate={navigate} onGradeChange={setInitialGrade} onAuthenticated={authenticated} onTeacherSignup={()=>{setShowLogin(false);setShowTeacherSignup(true);}} student={studentProfile} sessionLoading={sessionLoading}/>}
     {showAdmin && admin && <>{adminNotice && <p className="container admin-notice" role="status">{adminNotice}</p>}<AdminScope onChange={()=>{setStudents([]);setResults([]);setScopeRevision(n=>n+1);void loadAdmin();}}/><AdminPanel key={scopeRevision} students={students} results={results} stats={stats} error={error}
       onAdd={() => { setAddError(""); setShowAddStudent(true); }} onExport={exportCsv} onLogout={() => void logout()}
       onRefresh={() => void loadAdmin()}/></>}

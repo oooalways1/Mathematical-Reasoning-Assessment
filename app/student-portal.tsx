@@ -11,14 +11,14 @@ import Diagnosis from './diagnosis';
 import MyResults from './my-results';
 
 export type PortalPage = "home" | "signup" | "login" | "diagnosis" | "results";
-type Navigation = { onNavigate: (page: PortalPage) => void; onGradeChange?: (grade: Grade) => void; onAuthenticated?: (student: StudentProfile) => void };
+type Navigation = { onTeacherSignup?: () => void; onNavigate: (page: PortalPage) => void; onGradeChange?: (grade: Grade) => void; onAuthenticated?: (student: StudentProfile) => void };
 const domainIcons = [Calculator, TrendingUp, Shapes, ChartNoAxesCombined];
 
-export default function StudentPortal({ page, initialGrade, onNavigate, onGradeChange, onAuthenticated, student, sessionLoading }: Navigation & { page: PortalPage; initialGrade: Grade; student: StudentProfile | null; sessionLoading: boolean }) {
+export default function StudentPortal({ page, initialGrade, onNavigate, onGradeChange, onAuthenticated, onTeacherSignup, student, sessionLoading }: Navigation & { page: PortalPage; initialGrade: Grade; student: StudentProfile | null; sessionLoading: boolean }) {
   return <>
     <div className="preview-banner"><span/>수리력 진단 <span className="preview-separator">·</span> 나만의 아이디로 시작해요.</div>
     {page === "home" && <Landing onNavigate={onNavigate} student={student} sessionLoading={sessionLoading}/>}
-    {(page === "signup" || page === "login") && <AccountForm key={page} mode={page} onNavigate={onNavigate} onGradeChange={onGradeChange} onAuthenticated={onAuthenticated}/>}
+    {(page === "signup" || page === "login") && <AccountForm key={page} mode={page} onTeacherSignup={onTeacherSignup} onNavigate={onNavigate} onGradeChange={onGradeChange} onAuthenticated={onAuthenticated}/>}
     {page === "diagnosis" && <Diagnosis key={student?.id ?? initialGrade} student={student} sessionLoading={sessionLoading} initialGrade={initialGrade} onNavigate={onNavigate}/>}
     {page === "results" && <MyResults student={student} onNavigate={onNavigate}/>}
   </>;
@@ -60,7 +60,7 @@ function Landing({ onNavigate, student, sessionLoading }: Navigation & { student
   </div>;
 }
 
-function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated }: Navigation & { mode: "signup" | "login" }) {
+function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated, onTeacherSignup }: Navigation & { mode: "signup" | "login" }) {
   const signup = mode === "signup";
   const [schoolId,setSchoolId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -99,6 +99,7 @@ function AccountForm({ mode, onNavigate, onGradeChange, onAuthenticated }: Navig
     <div className="account-story"><p className="eyebrow">수리력 한걸음 · 내 계정</p><h1>{signup ? <>나의 배움이<br/>시작되는 곳.</> : <>다시 만나서<br/>반가워요.</>}</h1><p>나만의 아이디로 진단에 참여하고,<br/>나의 성장 기록을 이어 갈 수 있어요.</p><div className="account-points"><span><Check size={19}/> 나의 학년에 맞는 진단</span><span><Check size={19}/> 나만의 결과와 학습 기록</span><span><Check size={19}/> 아이디로 간편하게 로그인</span></div><button className="text-button" onClick={() => onNavigate("home")}><ChevronLeft size={18}/> 홈으로 돌아가기</button></div>
     <div className="panel account-card">
       <nav className="account-tabs" aria-label="학생 계정 메뉴"><button aria-current={!signup ? "page" : undefined} className={!signup ? "active" : ""} onClick={() => onNavigate("login")}>로그인</button><button aria-current={signup ? "page" : undefined} className={signup ? "active" : ""} onClick={() => onNavigate("signup")}>회원가입</button></nav>
+      {signup && onTeacherSignup && <aside className="teacher-signup-entry" aria-label="교사 회원가입"><strong>선생님이신가요?</strong><button type="button" className="button button-outline button-block" onClick={onTeacherSignup}><GraduationCap size={20}/> 교사로 가입하기 <ArrowRight size={18}/></button><small>학교와 담당 학급을 신청하고, 최고관리자 승인 후 이용하세요.</small></aside>}
       <h2>{signup ? "학생 회원가입" : "학생 로그인"}</h2><p className="muted">{signup ? "기억하기 쉬운 나만의 아이디를 만들어요." : "가입한 아이디와 비밀번호로 시작해요."}</p>
       <div id="account-readiness" className="readiness-note" role="status"><LockKeyhole size={19}/><p>{signup ? "아이디와 비밀번호를 기억해 주세요." : "내 아이디로 로그인해요."}<br/><small>비밀번호를 잊었다면 선생님께 문의해 주세요.</small></p></div>
       <form className="form-stack" onSubmit={handleSubmit} aria-describedby="account-readiness" autoComplete="off">
